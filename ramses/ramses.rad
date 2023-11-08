@@ -1,0 +1,72 @@
+;I/O
+
+ORG 192
+
+src:    DB
+dst:    DB
+step:   DB
+op:     DB
+
+
+;Programa
+
+ORG 0
+
+start:
+    ldr A, step
+    ldr B, op
+    jz cypher_init
+    neg A       ;Se for operação de decifragem, inverte a direção do step
+
+;Cifrar ou decifrar o texto
+cypher_init:
+    str A, true_step      ;`true_step` é o step na direção correta
+    ldr X, #0             ;Inicializar o registrador X
+
+    ;Posicionar o endereço do início da string de origem/destino no operando do `ldr`/`str`
+    ;que a carrega/armazena.
+    ;Isso é necessário porque o Ramses não suporta endereçamento indexado+indireto
+    ldr A, src
+    str A, cypher_load+1
+    ldr A, dst
+    str A, cypher_store+1
+
+cypher_loop:
+cypher_load:
+    ldr A, 0, X       ;Este `0` é um placeholder para o endereço de `src`
+    jz cypher_end     ;Verificar fim da string
+    add A, true_step  ;`step` é adicionado ou subtraítdo do caractere de índice X da string de origem
+
+    ;Chamemos de `c` o novo caractere obtido
+    ;O código abaixo normaliza `c` para o intervalo [65, 90]
+
+    sub A, #65        ;A = c - 65    (65 é o código ASCII de 'A')
+    jn normalize_up   ;Se (c < 65), normalizar para cima
+
+    add A, #102       ;A = c + 37
+    jn normalize_down ;Se (c + 37 > 127), (c > 90)
+    
+dont_normalize:
+    sub A, #37        ;A = c
+    jmp normalize_end
+
+normalize_up:
+    add A, #91        ;A = c + 26
+    jmp normalize_end
+
+normalize_down:
+    sub A, #63        ;A = c - 26
+
+normalize_end:
+cypher_store:
+    ;Este `0` é um placeholder para o endereço de destino
+    str A, 0, X
+    add X, #1
+    jmp cypher_loop
+
+cypher_end:
+    hlt
+
+
+;Variáveis
+true_step: DB
