@@ -30,6 +30,8 @@ cypher_init:
     str A, cypher_load+1
     ldr A, dst
     str A, cypher_store+1
+    ldr A, dst
+    str A, cypher_store2+1
 
 cypher_loop:
 cypher_load:
@@ -59,12 +61,13 @@ normalize_down:
 
 normalize_end:
 cypher_store:
-    ;Este `0` é um placeholder para o endereço de destino
-    str A, 0, X
+    str A, 0, X ;Este `0` é um placeholder para o endereço de destino
     add X, #1
     jmp cypher_loop
 
 cypher_end:
+cypher_store2:
+    str A, 0, X ;Este `0` é um placeholder para o endereço de destino
     hlt
 
 
