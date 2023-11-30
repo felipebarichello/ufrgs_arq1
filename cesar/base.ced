@@ -1,0 +1,130 @@
+; --- STARTUP ---
+
+	mov #stack, r6
+	jsr r7, __main
+	hlt
+
+
+;+=================================================================================================+
+
+
+;VARIÁVEIS
+
+in_buf: DAW [36] ;Buffer de entrada
+
+
+;PROGRAMA
+
+__main:
+	mov #in_buf, r3
+	jsr r7, _std_in
+
+	rts r7
+
+
+;+=================================================================================================+
+;|                                                                                                 |
+;|                                         BIBLIOTECAS                                             |
+;|       																				           |
+;+-------------------------------------------------------------------------------------------------+
+
+; <std>
+
+
+;std_clear()
+_std_clear:
+	mov #display, r5
+	
+std_clear_loop_even:
+	clr (r5)+
+	cmp r5, #display+35
+
+	;`ble` em vez de `bls` por causa do overflow
+	ble std_clear_loop_even
+
+	inc r5
+
+std_clear_loop_odd:
+	clr -(r5)
+	cmp r5, #display+1
+
+	;`bgt` em vez de `bhi` por causa do overflow
+	bgt std_clear_loop_odd
+	rts r7
+	
+
+;std_in(buffer[36] r3)
+;Receber input do usuário e armazenar no buffer (36 palavras) cujo endereço inicial está em r3.
+_std_in:
+	mov #display, r5
+
+std_in_wait:
+	tst tecst
+	beq std_in_wait
+	mov tecdt, r4
+	clr tecst
+
+std_in_backspace:
+	cmp r4, #h08 ;Backspace
+	bne std_in_return
+	cmp r5, #display
+	beq std_in_wait
+	dec r5
+	clr (r5)
+	jmp std_in_wait
+
+std_in_return:
+	cmp r4, #h0D ;Return
+	bne std_in_default
+	jsr r7, _std_input_flush
+	rts r7
+
+;Não é caractere especial. Imprime-o no display.
+std_in_default:
+	cmp r5, #display+35
+
+	;`bgt` em vez de `bhi` por causa do overflow
+	bgt std_in_wait
+	
+	mov r4, (r5)
+	inc r5
+	jmp std_in_wait
+
+
+;std_input_flush(buffer[36] r3)
+;Armazenar o conteúdo do display no buffer (36 palavras) cujo endereço inicial está em r3 e limpar o display.
+_std_input_flush:
+	clr r4		  ;Iterador
+
+std_input_flush_loop:
+	mov display(r4), (r3)+
+	clr display(r4)
+	inc r4
+	cmp r4, #36
+	bcs std_input_flush_loop ;Quando `r4 = 36`, o buffer está cheio
+
+	rts r7
+
+;+-------------------------------------------------------------------------------------------------+
+
+
+
+
+;+-------------------------------------------------------------------------------------------------+
+;|                                                                                                 |
+;|                                      ENDEREÇOS ESPECIAIS                                        |
+;|       																				           |
+;+-------------------------------------------------------------------------------------------------+
+
+stack: EQU hFF80 ;Fundo da stack
+
+ORG hFFBE
+ivet: DW ;Vetor de interrupção - endereço da ISR (Interrupt Service Routine)
+
+ORG hFFD7
+timdt: DB ;(BYTE) Timer base time
+ints:  DB ;(BYTE) Interrupt Status - Monitoramento do estado das interrupções
+inte:  DB ;(BYTE) Interrupt Enable - Controle de habilitação das interrupções
+tecst: DB ;(BYTE) Se o conteúdo deste endereço de memória for h80 então existe tecla disponível
+tecdt: DB ;(BYTE) Dado do Teclado - Endereço a ser lido caso exista uma tecla disponível
+display: DAB [36] ;(BYTE) 36 bytes do visor
