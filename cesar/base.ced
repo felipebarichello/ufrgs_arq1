@@ -18,8 +18,9 @@ in_buf: DAW [36] ;Buffer de entrada
 __main:
 	jsr r7, _std_clear
 	
-	mov #in_buf, r3
 	jsr r7, _std_in
+	mov #in_buf, r3
+	jmp _std_input_flush
 
 	rts r7
 
@@ -112,7 +113,6 @@ std_in_backspace:
 std_in_return:
 	cmp r4, #h0D ;Return
 	bne std_in_default
-	jsr r7, _std_input_flush
 	rts r7
 
 ;Não é caractere especial. Imprime-o no display.
