@@ -1,0 +1,1 @@
+Arquivos .rad e .ced utilizam encoding de caracteres Windows-1252
