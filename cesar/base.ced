@@ -16,6 +16,8 @@ in_buf: DAW [36] ;Buffer de entrada
 ;PROGRAMA
 
 __main:
+	jsr r7, _std_clear
+	
 	mov #in_buf, r3
 	jsr r7, _std_in
 
@@ -57,16 +59,50 @@ std_clear_loop_odd:
 ;Receber input do usuário e armazenar no buffer (36 palavras) cujo endereço inicial está em r3.
 _std_in:
 	mov #display, r5
+	mov #255, timdt
+	clr r1
+
+std_in_cursor:
+	clr ints
+
+	;Caso o display esteja cheio, não tenta desenhar o cursor
+	;`bgt` em vez de `bhi` por causa do overflow
+	cmp r5, #display+35
+	bgt std_in_read
+
+	tst r1
+	bne std_in_cursor_hide
+
+	mov #'|', (r5)
+	inc r1
+	jmp std_in_read
+
+std_in_cursor_hide:
+	clr (r5)
+	dec r1
+	jmp std_in_read
 
 std_in_wait:
+	mov ints, r0
+	and #h01, r0
+	bne std_in_cursor
+
+std_in_read:
 	tst tecst
 	beq std_in_wait
 	mov tecdt, r4
 	clr tecst
 
+	cmp r5, #display+35
+	bgt std_in_skip_clear
+
+	clr (r5)
+
+std_in_skip_clear:
 std_in_backspace:
 	cmp r4, #h08 ;Backspace
 	bne std_in_return
+
 	cmp r5, #display
 	beq std_in_wait
 	dec r5
