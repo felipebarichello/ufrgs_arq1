@@ -17,7 +17,7 @@ hello: DAW 'Hello, World!', 0
 ;PROGRAMA
 
 __main:
-	jsr r7, _stdio_clear
+	jsr r7, _stdio_init
 
 	mov #hello, r2
 	jsr r7, _stdio_print
@@ -39,11 +39,22 @@ __main:
 ; <stdio>
 
 
+stdio_text_end:    DW ;Endereço de memória do primeiro byte vazio do display
+stdio_input_start: DW ;Endereço de memória do primeiro byte do display que contém input do usuário
+
+
+;stdio_init()
+;Inicializar o display e o teclado.
+_stdio_init:
+	jsr r7, _stdio_clear   ;Limpar o display
+	rts r7
+
+
 ;stdio_print(buffer r2)
 ;Imprimir a null-terminated string do buffer cujo endereço inicial está em r2 no display.
 ;Continua o texto anterior caso não tenha sido limpo.
 _stdio_print:
-	mov #display, r5
+	mov stdio_text_end, r5
 	mov r2, r3
 
 stdio_print_loop:
@@ -56,6 +67,7 @@ stdio_print_loop:
 	jmp stdio_print_loop
 
 stdio_print_end:
+	mov r5, stdio_text_end
 	rts r7
 
 
@@ -78,6 +90,8 @@ stdio_clear_loop_odd:
 
 	;`bgt` em vez de `bhi` por causa do overflow
 	bgt stdio_clear_loop_odd
+
+	mov #display, stdio_text_end
 	rts r7
 
 
