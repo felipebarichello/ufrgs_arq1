@@ -11,16 +11,21 @@
 ;VARIÁVEIS
 
 in_buf: DAW [36] ;Buffer de entrada
+hello: DAW 'Hello, World!', 0
 
 
 ;PROGRAMA
 
 __main:
 	jsr r7, _stdio_clear
+
+	mov #hello, r2
+	jsr r7, _stdio_print
+	jsr r7, _stdio_print
 	
-	jsr r7, _stdio_in
-	mov #in_buf, r3
-	jmp _stdio_input_flush
+	; jsr r7, _stdio_in
+	; mov #in_buf, r3
+	; jmp _stdio_input_flush
 
 	rts r7
 
@@ -32,6 +37,26 @@ __main:
 ;+-------------------------------------------------------------------------------------------------+
 
 ; <stdio>
+
+
+;stdio_print(buffer r2)
+;Imprimir a null-terminated string do buffer cujo endereço inicial está em r2 no display.
+;Continua o texto anterior caso não tenha sido limpo.
+_stdio_print:
+	mov #display, r5
+	mov r2, r3
+
+stdio_print_loop:
+	cmp r5, #display+35
+	bgt stdio_print_end ;Para caso o display esteja cheio
+	mov (r3)+, r4
+	beq stdio_print_end ;Para caso o texto tenha terminado
+	mov r4, (r5)
+	inc r5
+	jmp stdio_print_loop
+
+stdio_print_end:
+	rts r7
 
 
 ;stdio_clear()
