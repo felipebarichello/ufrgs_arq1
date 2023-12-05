@@ -54,7 +54,7 @@ stdio_clear_loop_odd:
 	;`bgt` em vez de `bhi` por causa do overflow
 	bgt stdio_clear_loop_odd
 	rts r7
-	
+
 
 ;stdio_in(buffer[36] r3)
 ;Receber input do usuário e armazenar no buffer (36 palavras) cujo endereço inicial está em r3.
