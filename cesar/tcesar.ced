@@ -95,8 +95,9 @@ stdio_clear_loop_odd:
 	rts r7
 
 
-;stdio_in(buffer[36] r3)
-;Receber input do usuário e armazenar no buffer (36 palavras) cujo endereço inicial está em r3.
+;stdio_in()
+;Receber input do usuário até `return` ser pressionado.
+;Usar `_stdio_input_flush` para armazenar o conteúdo do display em um buffer
 _stdio_in:
 	mov #display, r5
 	mov #255, timdt
