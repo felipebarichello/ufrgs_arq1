@@ -16,11 +16,11 @@ in_buf: DAW [36] ;Buffer de entrada
 ;PROGRAMA
 
 __main:
-	jsr r7, _std_clear
+	jsr r7, _stdio_clear
 	
-	jsr r7, _std_in
+	jsr r7, _stdio_in
 	mov #in_buf, r3
-	jmp _std_input_flush
+	jmp _stdio_input_flush
 
 	rts r7
 
@@ -31,113 +31,113 @@ __main:
 ;|       																				           |
 ;+-------------------------------------------------------------------------------------------------+
 
-; <std>
+; <stdio>
 
 
-;std_clear()
-_std_clear:
+;stdio_clear()
+_stdio_clear:
 	mov #display, r5
 	
-std_clear_loop_even:
+stdio_clear_loop_even:
 	clr (r5)+
 	cmp r5, #display+35
 
 	;`ble` em vez de `bls` por causa do overflow
-	ble std_clear_loop_even
+	ble stdio_clear_loop_even
 
 	inc r5
 
-std_clear_loop_odd:
+stdio_clear_loop_odd:
 	clr -(r5)
 	cmp r5, #display+1
 
 	;`bgt` em vez de `bhi` por causa do overflow
-	bgt std_clear_loop_odd
+	bgt stdio_clear_loop_odd
 	rts r7
 	
 
-;std_in(buffer[36] r3)
+;stdio_in(buffer[36] r3)
 ;Receber input do usuário e armazenar no buffer (36 palavras) cujo endereço inicial está em r3.
-_std_in:
+_stdio_in:
 	mov #display, r5
 	mov #255, timdt
 	clr r1
 
-std_in_cursor:
+stdio_in_cursor:
 	clr ints
 
 	;Caso o display esteja cheio, não tenta desenhar o cursor
 	;`bgt` em vez de `bhi` por causa do overflow
 	cmp r5, #display+35
-	bgt std_in_read
+	bgt stdio_in_read
 
 	tst r1
-	bne std_in_cursor_hide
+	bne stdio_in_cursor_hide
 
 	mov #'|', (r5)
 	inc r1
-	jmp std_in_read
+	jmp stdio_in_read
 
-std_in_cursor_hide:
+stdio_in_cursor_hide:
 	clr (r5)
 	dec r1
-	jmp std_in_read
+	jmp stdio_in_read
 
-std_in_wait:
+stdio_in_wait:
 	mov ints, r0
 	and #h01, r0
-	bne std_in_cursor
+	bne stdio_in_cursor
 
-std_in_read:
+stdio_in_read:
 	tst tecst
-	beq std_in_wait
+	beq stdio_in_wait
 	mov tecdt, r4
 	clr tecst
 
 	cmp r5, #display+35
-	bgt std_in_skip_clear
+	bgt stdio_in_skip_clear
 
 	clr (r5)
 
-std_in_skip_clear:
-std_in_backspace:
+stdio_in_skip_clear:
+stdio_in_backspace:
 	cmp r4, #h08 ;Backspace
-	bne std_in_return
+	bne stdio_in_return
 
 	cmp r5, #display
-	beq std_in_wait
+	beq stdio_in_wait
 	dec r5
 	clr (r5)
-	jmp std_in_wait
+	jmp stdio_in_wait
 
-std_in_return:
+stdio_in_return:
 	cmp r4, #h0D ;Return
-	bne std_in_default
+	bne stdio_in_default
 	rts r7
 
 ;Não é caractere especial. Imprime-o no display.
-std_in_default:
+stdio_in_default:
 	cmp r5, #display+35
 
 	;`bgt` em vez de `bhi` por causa do overflow
-	bgt std_in_wait
+	bgt stdio_in_wait
 	
 	mov r4, (r5)
 	inc r5
-	jmp std_in_wait
+	jmp stdio_in_wait
 
 
-;std_input_flush(buffer[36] r3)
+;stdio_input_flush(buffer[36] r3)
 ;Armazenar o conteúdo do display no buffer (36 palavras) cujo endereço inicial está em r3 e limpar o display.
-_std_input_flush:
+_stdio_input_flush:
 	clr r4		  ;Iterador
 
-std_input_flush_loop:
+stdio_input_flush_loop:
 	mov display(r4), (r3)+
 	clr display(r4)
 	inc r4
 	cmp r4, #36
-	bcs std_input_flush_loop ;Quando `r4 = 36`, o buffer está cheio
+	bcs stdio_input_flush_loop ;Quando `r4 = 36`, o buffer está cheio
 
 	rts r7
 
