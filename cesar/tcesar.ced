@@ -126,6 +126,7 @@ stdio_clear_loop_odd:
 ;Receber input do usuário até `return` ser pressionado.
 ;Usar `_stdio_input_flush` para armazenar o conteúdo do display em um buffer
 _stdio_in:
+	clr tecst
 	mov #display, r5
 	mov #255, timdt
 	clr r1
