@@ -11,7 +11,12 @@
 ;VARIÁVEIS
 
 in_buf: DAW [36] ;Buffer de entrada
-hello: DAW 'Hello, World!', 0
+txt_press_any_1: DAW 'Pressione qualquer tecla para', 0
+txt_press_any_2: DAW 'continuar quando o icone a direita', 0
+txt_press_any_3: DAW 'estiver presente', 0
+txt_welcome: DAW 'Bem-vindo(a) a Iulius Caesar', 0
+txt_enter_word: DAW 'Insira a palavra secreta', 0
+; txt_enter_word_prompt: DAW 'Palavra: ', 0
 
 
 ;PROGRAMA
@@ -19,14 +24,36 @@ hello: DAW 'Hello, World!', 0
 __main:
 	jsr r7, _stdio_init
 
-	mov #hello, r2
-	jsr r7, _stdio_print
-	jsr r7, _stdio_print
+	mov #txt_press_any_1, r2
+	jsr r7, _print_and_wait
+
+	mov #txt_press_any_2, r2
+	jsr r7, _print_and_wait
+
+	mov #txt_press_any_3, r2
+	jsr r7, _print_and_wait
+
+	mov #txt_welcome, r2
+	jsr r7, _print_and_wait
+
+	mov #txt_enter_word, r2
+	jsr r7, _print_and_wait
+
+	; mov #txt_enter_word_prompt, r2
+	; jsr r7, _stdio_print
+	; jsr r7, _stdio_in
 	
 	; jsr r7, _stdio_in
 	; mov #in_buf, r3
 	; jmp _stdio_input_flush
 
+	rts r7
+	
+
+_print_and_wait:
+	jsr r7, _stdio_print
+	jsr r7, _stdio_anykey
+	jsr r7, _stdio_clear
 	rts r7
 
 
@@ -179,6 +206,19 @@ stdio_input_flush_loop:
 	cmp r4, #36
 	bcs stdio_input_flush_loop ;Quando `r4 = 36`, o buffer está cheio
 
+	rts r7
+
+
+;stdio_wait()
+;Pausar o programa até que uma tecla qualquer seja pressionada.
+_stdio_anykey:
+	mov #h3E, display+35 ;Desenhar '>' no canto direito
+	clr tecst
+
+_stdio_anykey_wait:
+	tst tecst
+	beq _stdio_anykey_wait
+	
 	rts r7
 
 ;+-------------------------------------------------------------------------------------------------+
