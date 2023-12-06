@@ -16,7 +16,7 @@ txt_press_any_2: DAW 'continuar quando o icone a direita', 0
 txt_press_any_3: DAW 'estiver presente', 0
 txt_welcome: DAW 'Bem-vindo(a) a Iulius Caesar', 0
 txt_enter_word: DAW 'Insira a palavra secreta', 0
-; txt_enter_word_prompt: DAW 'Palavra: ', 0
+txt_enter_word_prompt: DAW 'Palavra: ', 0
 
 
 ;PROGRAMA
@@ -39,16 +39,24 @@ __main:
 	mov #txt_enter_word, r2
 	jsr r7, _print_and_wait
 
-	; mov #txt_enter_word_prompt, r2
-	; jsr r7, _stdio_print
-	; jsr r7, _stdio_in
+	mov #txt_enter_word_prompt, r2
+	jsr r7, _stdio_print
+	jsr r7, _stdio_in
+
+	mov #in_buf, r3
+	jsr r7, _stdio_input_flush
+	jsr r7, _stdio_anykey
+	jsr r7, _stdio_clear
+
+	mov #in_buf, r2
+	jsr r7, _stdio_print
 	
 	; jsr r7, _stdio_in
 	; mov #in_buf, r3
 	; jmp _stdio_input_flush
 
 	rts r7
-	
+
 
 _print_and_wait:
 	jsr r7, _stdio_print
@@ -127,7 +135,8 @@ stdio_clear_loop_odd:
 ;Usar `_stdio_input_flush` para armazenar o conteúdo do display em um buffer
 _stdio_in:
 	clr tecst
-	mov #display, r5
+	mov stdio_text_end, r5
+	mov r5, stdio_input_start
 	mov #255, timdt
 	clr r1
 
@@ -181,6 +190,8 @@ stdio_in_backspace:
 stdio_in_return:
 	cmp r4, #h0D ;Return
 	bne stdio_in_default
+
+	mov r5, stdio_text_end
 	rts r7
 
 ;Não é caractere especial. Imprime-o no display.
@@ -198,17 +209,23 @@ stdio_in_default:
 ;stdio_input_flush(buffer[36] r3)
 ;Armazenar o conteúdo do display no buffer (36 palavras) cujo endereço inicial está em r3 e limpar o display.
 _stdio_input_flush:
-	clr r4		  ;Iterador
+	mov stdio_input_start, r4 ;Iterador
+	sub #display, r4 ;r4 agora contém o offset do buffer inicial
+	mov #36, r5
 
+;Loop começa em `stdio_input_start` e termina em `stdio_text_end`
 stdio_input_flush_loop:
 	mov display(r4), (r3)+
+	beq stdio_input_flush_end
 	clr display(r4)
 	inc r4
-	cmp r4, #36
+	cmp r4, r5
 	bcs stdio_input_flush_loop ;Quando `r4 = 36`, o buffer está cheio
 
+stdio_input_flush_end:
+	mov stdio_input_start, stdio_text_end
 	rts r7
-
+	
 
 ;stdio_wait()
 ;Pausar o programa até que uma tecla qualquer seja pressionada.
