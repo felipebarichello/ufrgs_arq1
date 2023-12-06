@@ -107,25 +107,18 @@ stdio_print_end:
 
 
 ;stdio_clear()
+;Limpar o display.
 _stdio_clear:
-	mov #display, r5
+	mov stdio_text_end, r5
+	sub #display+1, r5 ;r5 agora contém o offset do último byte com texto do display
+	blt stdio_clear_end ;Caso o display já esteja vazio, terminar
 	
-stdio_clear_loop_even:
-	clr (r5)+
-	cmp r5, #display+35
+stdio_clear_loop:
+	clr display(r5)
+	sob r5, stdio_clear_loop
+	clr display ;Limpar o primeiro byte do display
 
-	;`ble` em vez de `bls` por causa do overflow
-	ble stdio_clear_loop_even
-
-	inc r5
-
-stdio_clear_loop_odd:
-	clr -(r5)
-	cmp r5, #display+1
-
-	;`bgt` em vez de `bhi` por causa do overflow
-	bgt stdio_clear_loop_odd
-
+stdio_clear_end:
 	mov #display, stdio_text_end
 	rts r7
 
