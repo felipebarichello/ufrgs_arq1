@@ -10,13 +10,17 @@
 
 ;VARIÁVEIS
 
-in_buf: DAW [36] ;Buffer de entrada
+secret_word: DAW [36] ;Palavra secreta
+lives: DAW [2] ;Número de vidas, em ASCII. Fica mais otimizado para imprimir no display
+input_buf: DAW [36] ;Buffer de input genérico
 txt_press_any_1: DAW 'Pressione qualquer tecla para', 0
 txt_press_any_2: DAW 'continuar quando o icone a direita', 0
 txt_press_any_3: DAW 'estiver presente', 0
 txt_welcome: DAW 'Bem-vindo(a) a Iulius Caesar', 0
 txt_enter_word: DAW 'Insira a palavra secreta', 0
 txt_enter_word_prompt: DAW 'Palavra: ', 0
+txt_enter_lives: DAW 'Quantas vidas (max 99): ', 0
+txt_enter_lives_invalid: DAW 'Valor invalido', 0
 
 
 ;PROGRAMA
@@ -42,16 +46,26 @@ __main:
 	mov #txt_enter_word_prompt, r2
 	jsr r7, _stdio_print
 	jsr r7, _stdio_in
-
-	mov #in_buf, r3
+	mov #secret_word, r3
 	jsr r7, _stdio_input_flush
-	jsr r7, _stdio_clear
 	jsr r7, _str_to_upper
-	
-	; jsr r7, _stdio_in
-	; mov #in_buf, r3
-	; jmp _stdio_input_flush
 
+enter_lives_loop:
+	jsr r7, _stdio_clear
+	mov #txt_enter_lives, r2
+	jsr r7, _stdio_print
+	jsr r7, _stdio_in
+	mov #input_buf, r3
+	jsr r7, _stdio_input_flush
+	jsr r7, _valid_lives
+	bne game_loop
+	jsr r7, _stdio_clear
+	mov #txt_enter_lives_invalid, r2
+	jsr r7, _stdio_print
+	jsr r7, _stdio_anykey
+	jmp enter_lives_loop
+
+game_loop:
 	rts r7
 
 
@@ -60,6 +74,53 @@ _print_and_wait:
 	jsr r7, _stdio_anykey
 	jsr r7, _stdio_clear
 	rts r7
+
+
+;valid_lives(buffer r3)
+;Verificar se o buffer cujo endereço inicial está em r3 contém um número de vidas válido.
+;Preenche as vidas em `lives` caso seja válido.
+_valid_lives:
+	mov (r3)+, r4
+	beq valid_lives_false
+	mov #2, r5 ;No máximo 2 dígitos
+
+valid_lives_loop:
+	cmp r4, #'9'
+	bhi valid_lives_false ;Caractere não é um dígito
+	cmp r4, #'0'
+	bcs valid_lives_false ;Caractere não é um dígito
+
+	;Caractere é um dígito
+	;Novo caractere
+	mov (r3)+, r4
+	beq valid_lives_end
+	sob r5, valid_lives_loop
+	jmp valid_lives_false ;Mais de 2 dígitos
+
+valid_lives_end:
+	dec r2
+	bne valid_lives_padding
+
+	;Dois dígitos
+	mov -6(r3), lives
+	jmp valid_lives_second_digit
+
+valid_lives_padding:
+	;Um dígito. Adicionar um zero à esquerda
+	mov #0, lives
+
+valid_lives_second_digit:
+	mov -4(r3), lives+2
+
+valid_lives_true:
+	mov #1, r1
+	rts r7
+
+valid_lives_false:
+	clr r1
+	rts r7
+
+
 
 
 ;+=================================================================================================+
