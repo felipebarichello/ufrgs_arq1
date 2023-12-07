@@ -19,8 +19,8 @@ txt_press_any_3: DAW 'estiver presente', 0
 txt_welcome: DAW 'Bem-vindo(a) a Iulius Caesar', 0
 txt_enter_word: DAW 'Insira a palavra secreta', 0
 txt_enter_word_prompt: DAW 'Palavra: ', 0
-txt_enter_lives: DAW 'Quantas vidas (max 99): ', 0
-txt_enter_lives_invalid: DAW 'Valor invalido', 0
+txt_enter_lives: DAW 'Quantas vidas (1-99): ', 0
+txt_enter_lives_invalid: DAW 'Valor invalido!', 0
 
 
 ;PROGRAMA
@@ -107,10 +107,16 @@ valid_lives_end:
 
 valid_lives_padding:
 	;Um dígito. Adicionar um zero à esquerda
-	mov #0, lives
+	mov #'0', lives
 
 valid_lives_second_digit:
 	mov -4(r3), lives+2
+
+	;Verificar se não é 0
+	cmp lives+2, #'0'
+	bne valid_lives_true
+	cmp lives, #'0'
+	beq valid_lives_false
 
 valid_lives_true:
 	mov #1, r1
