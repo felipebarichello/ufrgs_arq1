@@ -339,16 +339,16 @@ stdio_input_flush_end:
 	rts r7
 
 
-;stdio_wait()
+;stdio_anykey()
 ;Pausar o programa até que uma tecla qualquer seja pressionada.
 _stdio_anykey:
 	mov display+35, r5 ;Guardar o último byte do display
 	mov #h3E, display+35 ;Desenhar '>' no último byte do display
 	clr tecst
 
-_stdio_anykey_wait:
+_stdio_anykey_anykey:
 	tst tecst
-	beq _stdio_anykey_wait
+	beq _stdio_anykey_anykey
 
 	mov r5, display+35 ;Recuperar o último byte do display
 	
