@@ -44,22 +44,9 @@ __main:
 	jsr r7, _stdio_in
 
 	mov #in_buf, r3
-	mov r3, r2
 	jsr r7, _stdio_input_flush
-	mov r3, r2
 	jsr r7, _stdio_clear
-	mov r3, r2
-
-	mov r3, r2
-	jsr r7, _print_and_wait
-
 	jsr r7, _str_to_upper
-	mov r3, r2
-	jsr r7, _print_and_wait
-
-	jsr r7, _str_to_lower
-	mov r3, r2
-	jsr r7, _print_and_wait
 	
 	; jsr r7, _stdio_in
 	; mov #in_buf, r3
@@ -131,7 +118,7 @@ str_to_lower_loop:
 str_to_lower_end:
 	rts r7
 
-;--------------------------------------------------------------------------------------------------+
+;+-------------------------------------------------------------------------------------------------+
 
 ; <stdio>
 
@@ -180,6 +167,15 @@ stdio_clear_loop:
 	clr display ;Limpar o primeiro byte do display
 
 stdio_clear_end:
+	mov #display, stdio_text_end
+	rts r7
+
+
+;stdio_free()
+;Virtualmente limpar o display sem alterar o conteúdo do display.
+;É mais otimizado que `stdio_clear` pois não precisa escrever no display.
+;Deve ser usado quando o conteúdo do display será sobrescrito.
+_stdio_free:
 	mov #display, stdio_text_end
 	rts r7
 
