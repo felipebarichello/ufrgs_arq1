@@ -44,12 +44,22 @@ __main:
 	jsr r7, _stdio_in
 
 	mov #in_buf, r3
+	mov r3, r2
 	jsr r7, _stdio_input_flush
-	jsr r7, _stdio_anykey
+	mov r3, r2
 	jsr r7, _stdio_clear
+	mov r3, r2
 
-	mov #in_buf, r2
-	jsr r7, _stdio_print
+	mov r3, r2
+	jsr r7, _print_and_wait
+
+	jsr r7, _str_to_upper
+	mov r3, r2
+	jsr r7, _print_and_wait
+
+	jsr r7, _str_to_lower
+	mov r3, r2
+	jsr r7, _print_and_wait
 	
 	; jsr r7, _stdio_in
 	; mov #in_buf, r3
@@ -71,6 +81,58 @@ _print_and_wait:
 ;|       																				           |
 ;+-------------------------------------------------------------------------------------------------+
 
+; <str>
+
+
+;str_to_upper(buffer r3)
+;Converter a null-terminated string do buffer cujo endereço inicial está em r3 para maiúsculas.
+_str_to_upper:
+	mov r3, r2
+
+str_to_upper_loop:
+	mov (r2)+, r4
+	beq str_to_upper_end
+	cmp r4, #'a'
+	bcs str_to_upper_loop
+
+	cmp r4, #'z'
+	bhi str_to_upper_loop
+
+	;r4 contém um caractere minúsculo
+	;Converter para maiúsculo
+	add #-32, r4 ;'A' - 'a' = -32
+	mov r4, -2(r2)
+	jmp str_to_upper_loop
+
+str_to_upper_end:
+	rts r7
+
+
+;str_to_lower(buffer r3)
+;Converter a null-terminated string do buffer cujo endereço inicial está em r3 para minúsculas.
+_str_to_lower:
+	mov r3, r2
+
+str_to_lower_loop:
+	mov (r2)+, r4
+	beq str_to_lower_end
+	cmp r4, #'A'
+	bcs str_to_lower_loop
+
+	cmp r4, #'Z'
+	bhi str_to_lower_loop
+
+	;r4 contém um caractere maiúsculo
+	;Converter para minúsculo
+	add #32, r4 ;'a' - 'A' = 32
+	mov r4, -2(r2)
+	jmp str_to_lower_loop
+
+str_to_lower_end:
+	rts r7
+
+;--------------------------------------------------------------------------------------------------+
+
 ; <stdio>
 
 
@@ -90,12 +152,11 @@ _stdio_init:
 ;Continua o texto anterior caso não tenha sido limpo.
 _stdio_print:
 	mov stdio_text_end, r5
-	mov r2, r3
 
 stdio_print_loop:
 	cmp r5, #display+35
 	bgt stdio_print_end ;Para caso o display esteja cheio
-	mov (r3)+, r4
+	mov (r2)+, r4
 	beq stdio_print_end ;Para caso o texto tenha terminado
 	mov r4, (r5)
 	inc r5
@@ -199,16 +260,17 @@ stdio_in_default:
 	jmp stdio_in_wait
 
 
-;stdio_input_flush(buffer[36] r3)
-;Armazenar o conteúdo do display no buffer (36 palavras) cujo endereço inicial está em r3 e limpar o display.
+;stdio_input_flush(buffer r3)
+;Armazenar o conteúdo do display no buffer cujo endereço inicial está em r3 e limpar o display.
 _stdio_input_flush:
+	mov r3, r2
 	mov stdio_input_start, r4 ;Iterador
 	sub #display, r4 ;r4 agora contém o offset do buffer inicial
 	mov #36, r5
 
 ;Loop começa em `stdio_input_start` e termina em `stdio_text_end`
 stdio_input_flush_loop:
-	mov display(r4), (r3)+
+	mov display(r4), (r2)+
 	beq stdio_input_flush_end
 	clr display(r4)
 	inc r4
@@ -231,8 +293,6 @@ _stdio_anykey_wait:
 	beq _stdio_anykey_wait
 	
 	rts r7
-
-;+-------------------------------------------------------------------------------------------------+
 
 
 
