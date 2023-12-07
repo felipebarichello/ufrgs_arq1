@@ -292,7 +292,7 @@ stdio_in_backspace:
 	cmp r4, #h08 ;Backspace
 	bne stdio_in_return
 
-	cmp r5, #display
+	cmp r5, stdio_input_start
 	beq stdio_in_wait
 	dec r5
 	clr (r5)
