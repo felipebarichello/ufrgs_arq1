@@ -226,16 +226,15 @@ stdio_print_end:
 ;Limpar o display.
 _stdio_clear:
 	mov stdio_text_end, r5
-	sub #display+1, r5 ;r5 agora contém o offset do último byte com texto do display
-	blt stdio_clear_end ;Caso o display já esteja vazio, terminar
+	sub #display, r5 ;r5 agora contém o offset do último byte com texto do display
+	ble stdio_clear_end ;Caso o display já esteja vazio, terminar
 	
 stdio_clear_loop:
-	clr display(r5)
+	clr 65499(r5) ;Por algum motivo, escrever `display-1(r5)` não funciona
 	sob r5, stdio_clear_loop
-	clr display ;Limpar o primeiro byte do display
+	mov #display, stdio_text_end
 
 stdio_clear_end:
-	mov #display, stdio_text_end
 	rts r7
 
 
