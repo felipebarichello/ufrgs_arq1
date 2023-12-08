@@ -3,6 +3,7 @@
 	mov #stack, r6
 	jsr r7, __main
 	hlt
+	jmp 0 ;Zerar o PC caso o usuário não tenha feito isso após o fim do programa
 
 
 ;+=================================================================================================+
@@ -10,12 +11,14 @@
 
 ;VARIÁVEIS
 
+;/[DEBUG]
 debug_warning: DAW 'ATENCAO: MODO DEBUG ATIVADO', 0
+;[/DEBUG]
 secret_word: DAW [37] ;Palavra secreta
 lives: DAW [3] ;Número de vidas, em ASCII. Deixar em ASCII é mais otimizado para imprimir no display.
 clock: DW ;Quantos ticks de 250ms se passaram desde o início do jogo
 ;[DEBUG]
-DW 0
+DW 0 ;Usar como string
 ;[/DEBUG]
 input_buf: DAW [37] ;Buffer de input genérico
 txt_press_any_1: DAW 'Pressione qualquer tecla para', 0
