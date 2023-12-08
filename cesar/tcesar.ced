@@ -10,9 +10,14 @@
 
 ;VARIÁVEIS
 
-secret_word: DAW [36] ;Palavra secreta
-lives: DAW [2] ;Número de vidas, em ASCII. Fica mais otimizado para imprimir no display
-input_buf: DAW [36] ;Buffer de input genérico
+debug_warning: DAW 'ATENCAO: MODO DEBUG ATIVADO', 0
+secret_word: DAW [37] ;Palavra secreta
+lives: DAW [3] ;Número de vidas, em ASCII. Deixar em ASCII é mais otimizado para imprimir no display.
+clock: DW ;Quantos ticks de 250ms se passaram desde o início do jogo
+;[DEBUG]
+DW 0
+;[/DEBUG]
+input_buf: DAW [37] ;Buffer de input genérico
 txt_press_any_1: DAW 'Pressione qualquer tecla para', 0
 txt_press_any_2: DAW 'continuar quando o icone a direita', 0
 txt_press_any_3: DAW 'estiver presente', 0
@@ -27,6 +32,24 @@ txt_enter_lives_invalid: DAW 'Valor invalido!', 0
 
 __main:
 	jsr r7, _stdio_init
+
+	;[DEBUG]
+	mov #debug_warning, r2
+	jsr r7, _print_and_wait
+
+	mov #'D', #secret_word
+	mov #'e', #secret_word+2
+	mov #'B', #secret_word+4
+	mov #'u', #secret_word+6
+	mov #'G', #secret_word+8
+	mov #0, #secret_word+10
+
+	mov #'0', lives
+	mov #'7', lives+2
+	mov #0, lives+4
+
+	jmp game_start
+	;[/DEBUG]
 
 	mov #txt_press_any_1, r2
 	jsr r7, _print_and_wait
@@ -43,6 +66,7 @@ __main:
 	mov #txt_enter_word, r2
 	jsr r7, _print_and_wait
 
+enter_word_prompt:
 	mov #txt_enter_word_prompt, r2
 	jsr r7, _stdio_print
 	jsr r7, _stdio_in
@@ -57,18 +81,42 @@ enter_lives_loop:
 	jsr r7, _stdio_in
 	mov #input_buf, r3
 	jsr r7, _stdio_input_flush
-	jsr r7, _valid_lives
-	bne game_loop
+	jsr r7, _set_lives
+	bne game_start
+
+ 	;Erro parseando o número de vidas
 	jsr r7, _stdio_clear
 	mov #txt_enter_lives_invalid, r2
 	jsr r7, _stdio_print
 	jsr r7, _stdio_anykey
 	jmp enter_lives_loop
 
+game_start:
+	jsr r7, _stdio_clear
+	
+	;Iniciar o timer com interrupção
+	mov #i_update_timer, ivet
+	mov #h81, inte
+	mov #250, timdt
+
 game_loop:
+	mov #clock, r2
+
+	; ;Multiplicar `clock` por 4, obtendo o tempo em segundos
+	asl r2
+	asl r2
+
+	;Imprimir o tempo no display
+	jsr r7, _str_from_u16
+	jsr r7, _stdio_clear
+	jsr r7, _stdio_print
+
+	br game_loop
+
 	rts r7
 
 
+;print_and_wait(buffer r2)
 _print_and_wait:
 	jsr r7, _stdio_print
 	jsr r7, _stdio_anykey
@@ -76,57 +124,65 @@ _print_and_wait:
 	rts r7
 
 
-;valid_lives(buffer r3)
+;set_lives(buffer r3)
 ;Verificar se o buffer cujo endereço inicial está em r3 contém um número de vidas válido.
 ;Preenche as vidas em `lives` caso seja válido.
-_valid_lives:
+;Retorna 1 caso seja válido, 0 caso contrário.
+_set_lives:
 	mov (r3)+, r4
-	beq valid_lives_false
+	beq set_lives_false
 	mov #2, r5 ;No máximo 2 dígitos
 
-valid_lives_loop:
+set_lives_loop:
 	cmp r4, #'9'
-	bhi valid_lives_false ;Caractere não é um dígito
+	bhi set_lives_false ;Caractere não é um dígito
 	cmp r4, #'0'
-	bcs valid_lives_false ;Caractere não é um dígito
+	bcs set_lives_false ;Caractere não é um dígito
 
 	;Caractere é um dígito
 	;Novo caractere
 	mov (r3)+, r4
-	beq valid_lives_end
-	sob r5, valid_lives_loop
-	jmp valid_lives_false ;Mais de 2 dígitos
+	beq set_lives_end
+	sob r5, set_lives_loop
+	jmp set_lives_false ;Mais de 2 dígitos
 
-valid_lives_end:
+set_lives_end:
 	dec r2
-	bne valid_lives_padding
+	bne set_lives_padding
 
 	;Dois dígitos
 	mov -6(r3), lives
-	jmp valid_lives_second_digit
+	jmp set_lives_second_digit
 
-valid_lives_padding:
+set_lives_padding:
 	;Um dígito. Adicionar um zero à esquerda
 	mov #'0', lives
 
-valid_lives_second_digit:
+set_lives_second_digit:
 	mov -4(r3), lives+2
 
 	;Verificar se não é 0
 	cmp lives+2, #'0'
-	bne valid_lives_true
+	bne set_lives_true
 	cmp lives, #'0'
-	beq valid_lives_false
+	beq set_lives_false
 
-valid_lives_true:
+set_lives_true:
 	mov #1, r1
 	rts r7
 
-valid_lives_false:
+set_lives_false:
 	clr r1
 	rts r7
 
 
+;Iupdate_timer()
+;Interrupção do timer.
+i_update_timer:
+	mov #250, timdt
+	inc clock
+	and #hFFFE, ints
+	rti
 
 
 ;+=================================================================================================+
@@ -136,6 +192,9 @@ valid_lives_false:
 ;+-------------------------------------------------------------------------------------------------+
 
 ; <str>
+
+
+str_masks_desc: DAW hF000, h0F00, h00F0, h000F ;Máscaras de 4 bits em sequência
 
 
 ;str_to_upper(buffer r3)
@@ -183,6 +242,52 @@ str_to_lower_loop:
 	jmp str_to_lower_loop
 
 str_to_lower_end:
+	rts r7
+
+
+;str_from_u16(u16[6] r1, string r2)
+;Converte o inteiro unsigned para null-terminated string
+_str_from_u16:
+	add #5, r2 ;r2 agora aponta para o último caractere da string
+	mov #4, r5 ;Iterador. 4 máscaras.
+	mov #'0', r1 ;"Limpar" o último dígito da string. O loop requer que ele esteja já com '1' ou '0'.
+
+str_from_u16_loop:
+	;Converter 4 bits para BCD
+	mov r1, r4
+	and str_masks_desc-1(r5), r4 ;Começa com a máscara menos significativa
+
+	;Executar o str_from_u16_digit 4 * r5 vezes
+	mov r5, r3
+	ccc C
+	rol r3
+	rol r3
+
+str_from_u16_digit:
+	;Converter por exemplo 01010000 para 00000101
+	ror r4
+	sob r3, str_from_u16_digit
+	rol r4
+
+	
+	cmp r4, #9
+	bcs str_from_u16_skip_normalize ;Se for menor que 9, só não normaliza
+	bhi str_from_u16_normalize ;Se maior que 9, precisa ser normalizado
+
+	;Se for 9, pode somar 1 do carry anterior e somar 10
+	cmp (r2), '0' ;O dígito final será 9
+	beq str_from_u16_skip_normalize ;Carry
+
+str_from_u16_normalize:
+	;É maior que 9. Normalizar.
+	;Suponha por exemplo que r4 = 12
+	sub #10, r4      ;Agora r4 é 2
+	mov #'1', -2(r2) ;E o próximo dígito será 1
+	
+	add r4, (r2) ;Adicionar o valor do dígito atual na string já em BCD	
+
+str_from_u16_skip_normalize:
+	sob r5, str_from_u16_loop
 	rts r7
 
 ;+-------------------------------------------------------------------------------------------------+
