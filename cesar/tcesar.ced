@@ -89,7 +89,7 @@ enter_lives_loop:
 	mov #txt_enter_lives_invalid, r2
 	jsr r7, _stdio_print
 	jsr r7, _stdio_anykey
-	jmp enter_lives_loop
+	br enter_lives_loop
 
 game_start:
 	jsr r7, _stdio_clear
@@ -135,7 +135,7 @@ set_lives_loop:
 	mov (r3)+, r4
 	beq set_lives_end
 	sob r5, set_lives_loop
-	jmp set_lives_false ;Mais de 2 dígitos
+	br set_lives_false ;Mais de 2 dígitos
 
 set_lives_end:
 	dec r2
@@ -143,7 +143,7 @@ set_lives_end:
 
 	;Dois dígitos
 	mov -6(r3), lives
-	jmp set_lives_second_digit
+	br set_lives_second_digit
 
 set_lives_padding:
 	;Um dígito. Adicionar um zero à esquerda
@@ -218,7 +218,7 @@ str_to_upper_loop:
 	;Converter para maiúsculo
 	add #-32, r4 ;'A' - 'a' = -32
 	mov r4, -2(r2)
-	jmp str_to_upper_loop
+	br str_to_upper_loop
 
 str_to_upper_end:
 	rts r7
@@ -242,7 +242,7 @@ str_to_lower_loop:
 	;Converter para minúsculo
 	add #32, r4 ;'a' - 'A' = 32
 	mov r4, -2(r2)
-	jmp str_to_lower_loop
+	br str_to_lower_loop
 
 str_to_lower_end:
 	rts r7
@@ -334,7 +334,7 @@ stdio_print_loop:
 	beq stdio_print_end ;Para caso o texto tenha terminado
 	mov r4, (r5)
 	inc r5
-	jmp stdio_print_loop
+	br stdio_print_loop
 
 stdio_print_end:
 	mov r5, stdio_text_end
@@ -389,12 +389,12 @@ stdio_in_cursor:
 
 	mov #'|', (r5)
 	inc r1
-	jmp stdio_in_read
+	br stdio_in_read
 
 stdio_in_cursor_hide:
 	clr (r5)
 	dec r1
-	jmp stdio_in_read
+	br stdio_in_read
 
 stdio_in_wait:
 	mov ints, r0
@@ -421,7 +421,7 @@ stdio_in_backspace:
 	beq stdio_in_wait
 	dec r5
 	clr (r5)
-	jmp stdio_in_wait
+	br stdio_in_wait
 
 stdio_in_return:
 	cmp r4, #h0D ;Return
@@ -439,7 +439,7 @@ stdio_in_default:
 	
 	mov r4, (r5)
 	inc r5
-	jmp stdio_in_wait
+	br stdio_in_wait
 
 
 ;stdio_input_flush(buffer r3)
