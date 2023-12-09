@@ -15,9 +15,10 @@
 debug_warning: DAW 'ATENCAO: MODO DEBUG ATIVADO', 0
 ;[/DEBUG]
 secret_word: DAW [37] ;Palavra secreta
+secret_word_hidden: DAW [37] ;Palavra secreta com os caracteres não descobertos substituídos por '_'
 lives: DAW [3] ;Número de vidas, em ASCII. Deixar em ASCII é mais otimizado para imprimir no display.
 clock: DW ;Quantos ticks de 250ms se passaram desde o início do jogo
-strbuf37: DAW [37] ;Buffer de string do tamanho do display
+strbuf36: DAW [37] ;Buffer de string do tamanho do display
 txt_press_any_1: DAW 'Pressione qualquer tecla para', 0
 txt_press_any_2: DAW 'continuar quando o icone a direita', 0
 txt_press_any_3: DAW 'estiver presente', 0
@@ -26,6 +27,8 @@ txt_enter_word: DAW 'Insira a palavra secreta', 0
 txt_enter_word_prompt: DAW 'Palavra: ', 0
 txt_enter_lives: DAW 'Quantas vidas (1-99): ', 0
 txt_enter_lives_invalid: DAW 'Valor invalido!', 0
+txt_symbol_heart: DAW 'S2', 0
+txt_space: DAW ' ', 0
 
 
 ;PROGRAMA
@@ -34,21 +37,21 @@ __main:
 	jsr r7, _stdio_init
 
 	;[DEBUG]
-	mov #debug_warning, r2
-	jsr r7, _print_and_wait
+	; mov #debug_warning, r2
+	; jsr r7, _print_and_wait
 
-	mov #'D', #secret_word
-	mov #'e', #secret_word+2
-	mov #'B', #secret_word+4
-	mov #'u', #secret_word+6
-	mov #'G', #secret_word+8
-	mov #0, #secret_word+10
+	; mov #'D', secret_word
+	; mov #'e', secret_word+2
+	; mov #'B', secret_word+4
+	; mov #'u', secret_word+6
+	; mov #'G', secret_word+8
+	; mov #0,   secret_word+10
 
-	mov #'0', lives
-	mov #'7', lives+2
-	mov #0, lives+4
+	; mov #'0', lives
+	; mov #'7', lives+2
+	; mov #0, lives+4
 
-	jmp game_start
+	; jmp game_start
 	;[/DEBUG]
 
 	mov #txt_press_any_1, r2
@@ -79,7 +82,7 @@ enter_lives_loop:
 	mov #txt_enter_lives, r2
 	jsr r7, _stdio_print
 	jsr r7, _stdio_in
-	mov #strbuf37, r3
+	mov #strbuf36, r3
 	jsr r7, _stdio_input_flush
 	jsr r7, _set_lives
 	bne game_start
@@ -95,14 +98,45 @@ game_start:
 	jsr r7, _stdio_clear
 
 	clr clock
+
+	;Copiar a palavra secreta para a palavra secreta escondida, substituindo os caracteres por '_'
+	mov #secret_word, r3
+	mov #secret_word_hidden, r4
+
+game_hide_word_loop:
+	mov (r3)+, r0
+	beq game_hide_word_end
 	
+	cmp r0, #' '
+	beq game_hide_word_skip_replace
+
+	mov #'_', r0
+
+game_hide_word_skip_replace:
+	mov r0, (r4)+
+	br game_hide_word_loop
+
+game_hide_word_end:
 	;Iniciar o timer com interrupção
 	mov #i_update_timer, ivet
 	mov #h81, inte
 	mov #250, timdt
 
 game_loop:
-	br game_loop
+	jsr r7, _stdio_clear
+
+	mov #secret_word_hidden, r2
+	jsr r7, _stdio_print ;Imprimir a palavra secreta à esquerda
+
+	mov #display+31, stdio_cursor
+	mov #txt_symbol_heart, r2
+	jsr r7, _stdio_print ;Imprimir o símbolo de coração à direita
+
+	mov #txt_space, r2
+	jsr r7, _stdio_print ;Imprimir um espaço entre o símbolo de coração e o número de vidas
+
+	mov #lives, r2 ;Já está em ASCII
+	jsr r7, _stdio_print ;Imprimir o número de vidas à direita
 
 	rts r7
 
@@ -121,7 +155,7 @@ _print_and_wait:
 ;Retorna 1 caso seja válido, 0 caso contrário.
 _set_lives:
 	mov (r3)+, r4
-	beq set_lives_false
+	beq set_lives_false ;0 dígitos
 	mov #2, r5 ;No máximo 2 dígitos
 
 set_lives_loop:
@@ -133,12 +167,12 @@ set_lives_loop:
 	;Caractere é um dígito
 	;Novo caractere
 	mov (r3)+, r4
-	beq set_lives_end
+	beq set_lives_2digits
 	sob r5, set_lives_loop
 	br set_lives_false ;Mais de 2 dígitos
 
-set_lives_end:
-	dec r2
+set_lives_2digits:
+	dec r5
 	bne set_lives_padding
 
 	;Dois dígitos
@@ -173,17 +207,6 @@ i_update_timer:
 	mov #250, timdt
 	inc clock
 	and #hFFFE, ints
-
-	;[DEBUG]
-	mov clock, r0
-	mov #strbuf37, r5
-
-	;Imprimir o tempo no display
-	jsr r7, _str_from_u16
-	mov r0, r2
-	jsr r7, _stdio_clear
-	jsr r7, _stdio_print
-	;[/DEBUG]
 
 	rti
 
@@ -341,14 +364,14 @@ math_div_u16_byzero:
 ; <stdio>
 
 
-stdio_text_end:    DW ;Endereço de memória do primeiro byte vazio do display
+stdio_cursor:    DW   ;Endereço de memória do primeiro byte vazio do display
 stdio_input_start: DW ;Endereço de memória do primeiro byte do display que contém input do usuário
 
 
 ;stdio_init()
 ;Inicializar o display e o teclado.
 _stdio_init:
-	mov #0, #stdio_text_end ;Mandar limpar o display inteiro
+	mov #0, #stdio_cursor ;Mandar limpar o display inteiro
 	jsr r7, _stdio_clear   ;Limpar o display
 	rts r7
 
@@ -357,7 +380,7 @@ _stdio_init:
 ;Imprimir a null-terminated string do buffer cujo endereço inicial está em r2 no display.
 ;Continua o texto anterior caso não tenha sido limpo.
 _stdio_print:
-	mov stdio_text_end, r5
+	mov stdio_cursor, r5
 
 stdio_print_loop:
 	cmp r5, #display+35
@@ -369,21 +392,21 @@ stdio_print_loop:
 	br stdio_print_loop
 
 stdio_print_end:
-	mov r5, stdio_text_end
+	mov r5, stdio_cursor
 	rts r7
 
 
 ;stdio_clear()
 ;Limpar o display.
 _stdio_clear:
-	mov stdio_text_end, r5
+	mov stdio_cursor, r5
 	sub #display, r5 ;r5 agora contém o offset do último byte com texto do display
 	ble stdio_clear_end ;Caso o display já esteja vazio, terminar
 	
 stdio_clear_loop:
 	clr 65499(r5) ;Por algum motivo, escrever `display-1(r5)` não funciona
 	sob r5, stdio_clear_loop
-	mov #display, stdio_text_end
+	mov #display, stdio_cursor
 
 stdio_clear_end:
 	rts r7
@@ -394,7 +417,7 @@ stdio_clear_end:
 ;É mais otimizado que `stdio_clear` pois não precisa escrever no display.
 ;Deve ser usado quando o conteúdo do display será sobrescrito.
 _stdio_free:
-	mov #display, stdio_text_end
+	mov #display, stdio_cursor
 	rts r7
 
 
@@ -403,7 +426,7 @@ _stdio_free:
 ;Usar `_stdio_input_flush` para armazenar o conteúdo do display em um buffer
 _stdio_in:
 	clr tecst
-	mov stdio_text_end, r5
+	mov stdio_cursor, r5
 	mov r5, stdio_input_start
 	mov #255, timdt
 	clr r1
@@ -459,7 +482,7 @@ stdio_in_return:
 	cmp r4, #h0D ;Return
 	bne stdio_in_default
 
-	mov r5, stdio_text_end
+	mov r5, stdio_cursor
 	rts r7
 
 ;Não é caractere especial. Imprime-o no display.
@@ -482,7 +505,7 @@ _stdio_input_flush:
 	sub #display, r4 ;r4 agora contém o offset do buffer inicial
 	mov #36, r5
 
-;Loop começa em `stdio_input_start` e termina em `stdio_text_end`
+;Loop começa em `stdio_input_start` e termina em `stdio_cursor`
 stdio_input_flush_loop:
 	mov display(r4), (r2)+
 	beq stdio_input_flush_end
@@ -492,7 +515,7 @@ stdio_input_flush_loop:
 	bcs stdio_input_flush_loop ;Quando `r4 = 36`, o buffer está cheio
 
 stdio_input_flush_end:
-	mov stdio_input_start, stdio_text_end
+	mov stdio_input_start, stdio_cursor
 	rts r7
 
 
@@ -503,9 +526,9 @@ _stdio_anykey:
 	mov #h3E, display+35 ;Desenhar '>' no último byte do display
 	clr tecst
 
-_stdio_anykey_anykey:
+stdio_anykey_loop:
 	tst tecst
-	beq _stdio_anykey_anykey
+	beq stdio_anykey_loop
 
 	mov r5, display+35 ;Recuperar o último byte do display
 	
