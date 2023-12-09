@@ -180,7 +180,7 @@ i_update_timer:
 
 	;Imprimir o tempo no display
 	jsr r7, _str_from_u16
-	mov r5, r2
+	mov r0, r2
 	jsr r7, _stdio_clear
 	jsr r7, _stdio_print
 	;[/DEBUG]
@@ -247,15 +247,24 @@ str_to_lower_end:
 
 ;str_from_u16(u16 r0, string r5)
 ;Converte o inteiro unsigned para null-terminated string
-;r0: 0
+;r0: Endereço do algarismo mais significativo não-nulo ou zero caso todos os algarismos sejam nulos
+;r1: #10
+;r2: -
+;r3: -
+;r4: -
 _str_from_u16:
 	add #10, r5  ;r5 agora aponta para o último caractere da string
 	mov #0, (r5) ;A string termina com o caractere nulo
 	mov #5, r4   ;Iterador. Um u16 consegue ter no máximo 5 dígitos 
 	mov #10, r1  ;Divisor
+	tst r0
+	bne str_from_u16_div_loop
+	mov r5, r0
+	sub #2, r0 ;r0 agora aponta para o último caractere da string
+	br str_from_u16_padding_loop
 
 str_from_u16_div_loop:
-	beq str_from_u16_padding_loop ;Quando o dividendo for 0, terminar
+	beq str_from_u16_padding ;Quando o dividendo for 0, terminar
 
 	mov r4, -(r6) ;_math_div_u16 altera r4
 	jsr r7, _math_div_u16 ;Dividir por 10
@@ -267,9 +276,14 @@ str_from_u16_div_loop:
 	mov r3, -(r5) ;Armazenar o caractere do dígito na string
 	mov r2, r0    ;Preparar o dividendo para a próxima iteração
 	sob r4, str_from_u16_div_loop
+
+	mov r5, r0 ;r0 contém o endereço do algarismo mais significativo não-nulo
 	br str_from_u16_end ;Se todos os dígitos foram usados, não precisa preencher com zeros
 
 ;Senão, preencher os dígitos não usados com zeros
+str_from_u16_padding:
+	mov r5, r0 ;r0 contém o endereço do algarismo mais significativo não-nulo
+
 str_from_u16_padding_loop:
 	mov #'0', -(r5)
 	sob r4, str_from_u16_padding_loop ;r4 contém o número de dígitos não preenchidos
