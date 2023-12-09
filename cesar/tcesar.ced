@@ -175,12 +175,12 @@ i_update_timer:
 	and #hFFFE, ints
 
 	;[DEBUG]
-	mov clock, r1
-
-	mov #strbuf37, r2
+	mov clock, r0
+	mov #strbuf37, r5
 
 	;Imprimir o tempo no display
 	jsr r7, _str_from_u16
+	mov r5, r2
 	jsr r7, _stdio_clear
 	jsr r7, _stdio_print
 	;[/DEBUG]
@@ -195,9 +195,6 @@ i_update_timer:
 ;+-------------------------------------------------------------------------------------------------+
 
 ; <str>
-
-
-str_masks_desc: DAW hF000, h0F00, h00F0, h000F ;Máscaras de 4 bits em sequência
 
 
 ;str_to_upper(buffer r3)
@@ -248,60 +245,81 @@ str_to_lower_end:
 	rts r7
 
 
-;str_from_u16(u16[6] r1, string r2)
+;str_from_u16(u16 r0, string r5)
 ;Converte o inteiro unsigned para null-terminated string
+;r0: 0
 _str_from_u16:
-	clr 12(r2) ;Terminar a string com null
-	add #10, r2 ;r2 agora aponta para o último caractere da string
-	mov #4, r5 ;Iterador. 4 máscaras.
-	mov #'0', (r2) ;"Limpar" o último dígito da string. O loop requer que ele esteja já com '1' ou '0'.
+	add #10, r5  ;r5 agora aponta para o último caractere da string
+	mov #0, (r5) ;A string termina com o caractere nulo
+	mov #5, r4   ;Iterador. Um u16 consegue ter no máximo 5 dígitos 
+	mov #10, r1  ;Divisor
 
-str_from_u16_loop:
-	;Converter 4 bits para BCD
-	mov r1, r4
+str_from_u16_div_loop:
+	beq str_from_u16_padding_loop ;Quando o dividendo for 0, terminar
 
-	mov r5, r3
-	asl r3
-	add #str_masks_desc-2, r3 ;-2 porque o sob vai de 1 a 4 em vez de 0 a 3
-	and (r3), r4 ;Começa com a máscara menos significativa
+	mov r4, -(r6) ;_math_div_u16 altera r4
+	jsr r7, _math_div_u16 ;Dividir por 10
+	mov (r6)+, r4
+	;r2 contém o número com o dígito menos significativo removido
+	;r3 contém o dígito menos significativo
 
-	;Executar o str_from_u16_get_digit 4 * (4-r5) vezes
-	mov #4, r3
-	sub r5, r3
-	beq str_from_u16_skip_digit ;Se r5 = 4, r4 já é um dígito BCD
-	ccc C
-	rol r3
-	rol r3
+	add #'0', r3  ;Converter o dígito de BCD para ASCII
+	mov r3, -(r5) ;Armazenar o caractere do dígito na string
+	mov r2, r0    ;Preparar o dividendo para a próxima iteração
+	sob r4, str_from_u16_div_loop
+	br str_from_u16_end ;Se todos os dígitos foram usados, não precisa preencher com zeros
 
-str_from_u16_get_digit:
-	;Converter por exemplo 01010000 para 00000101
-	ror r4
-	sob r3, str_from_u16_get_digit
-	rol r4
+;Senão, preencher os dígitos não usados com zeros
+str_from_u16_padding_loop:
+	mov #'0', -(r5)
+	sob r4, str_from_u16_padding_loop ;r4 contém o número de dígitos não preenchidos
 
-str_from_u16_skip_digit:
-	cmp r4, #9
-	bcs str_from_u16_not_normalize ;Se for menor que 9, só não normaliza
-	bhi str_from_u16_normalize ;Se maior que 9, precisa ser normalizado
+str_from_u16_end:
+	rts r7
 
-	;Se for 9, pode somar 1 do carry anterior e somar 10
-	cmp (r2), '0' ;O dígito final será 9
-	beq str_from_u16_not_normalize ;Carry
+;+-------------------------------------------------------------------------------------------------+
 
-str_from_u16_normalize:
-	;É maior que 9. Normalizar.
-	;Suponha por exemplo que r4 = 12
-	sub #10, r4     ;Agora r4 é 2
-	mov #'1', -2(r2) ;E o próximo dígito será 1
-	br str_from_u16_normalized
+; <math>
+
+
+;math_div_u16(u16 r0, u16 r1)
+;Divide r0 por r1 e armazena o quociente em r2 e o resto em r3
+;Caso o divisor seja 0, retorna 0 em r2 e coloca o dividendo em r3
+_math_div_u16:
+	;Divisão por 0
+	tst r1
+	beq math_div_u16_byzero
 	
-str_from_u16_not_normalize:
-	mov #'0', -2(r2) ;O próximo dígito será 0
+	mov #16, r4 ;Iterador
+	clr r3 ;Dividendo parcial
 
-str_from_u16_normalized:
-	add r4, (r2)    ;Adicionar o dígito atual na string (que já está em BCD)
-	sub #2, r2	    ;Próximo caractere da string
-	sob r5, str_from_u16_loop
+math_div_u16_loop:
+	;Extrair o bit mais significativo do dividendo
+	ccc C
+	rol r0 ;Não poderia ser com `shl` pois o bit mais significativo se comporta como sinal
+	rol r3
+
+	;Caso o dividendo parcial seja maior ou igual ao divisor, subtrair o divisor do dividendo parcial
+	cmp r3, r1
+	bcs math_div_u16_not_sub
+
+	sub r1, r3
+	scc C ;Inserir 1 no bit correspondente do quociente
+	br math_div_u16_loop_end
+
+math_div_u16_not_sub:
+	ccc C ;Inserir 0 no bit correspondente do quociente
+
+math_div_u16_loop_end:
+	rol r2 ;Inserir o bit no quociente
+	sob r4, math_div_u16_loop
+
+math_div_u16_end:
+	rts r7
+
+math_div_u16_byzero:
+	clr r2
+	mov r0, r3
 	rts r7
 
 ;+-------------------------------------------------------------------------------------------------+
