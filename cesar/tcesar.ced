@@ -1,3 +1,5 @@
+null: DW 0 ;Endereço nulo
+
 ; --- STARTUP ---
 
 	mov #stack, r6
@@ -35,6 +37,7 @@ txt_space: DAW ' ', 0
 
 __main:
 	jsr r7, _stdio_init
+	jsr r7, _isr_init
 
 	;[DEBUG]
 	; mov #debug_warning, r2
@@ -45,15 +48,15 @@ __main:
 	; mov #'B', secret_word+4
 	; mov #'u', secret_word+6
 	; mov #'G', secret_word+8
-	; mov #0,   secret_word+10
+	; clr secret_word+10 ;Null terminator
 
 	; mov #'0', lives
 	; mov #'7', lives+2
-	; mov #0, lives+4
+	; clr lives+4 ;Null terminator
 
 	; jmp game_start
 	;[/DEBUG]
-
+	
 	mov #txt_press_any_1, r2
 	jsr r7, _print_and_wait
 
@@ -118,8 +121,8 @@ game_hide_word_skip_replace:
 
 game_hide_word_end:
 	;Iniciar o timer com interrupção
-	mov #i_update_timer, ivet
-	mov #h81, inte
+	mov #_update_timer, isr_timer
+	jsr r7, _isr_enable_timer
 	mov #250, timdt
 
 game_loop:
@@ -201,14 +204,11 @@ set_lives_false:
 	rts r7
 
 
-;Iupdate_timer()
+;update_timer()
 ;Interrupção do timer.
-i_update_timer:
-	mov #250, timdt
+_update_timer:
 	inc clock
-	and #hFFFE, ints
-
-	rti
+	rts r7
 
 
 ;+=================================================================================================+
@@ -277,7 +277,7 @@ str_to_lower_end:
 ;r4: -
 _str_from_u16:
 	add #10, r5  ;r5 agora aponta para o último caractere da string
-	mov #0, (r5) ;A string termina com o caractere nulo
+	clr (r5)     ;Null terminator
 	mov #5, r4   ;Iterador. Um u16 consegue ter no máximo 5 dígitos 
 	mov #10, r1  ;Divisor
 	tst r0
@@ -371,7 +371,7 @@ stdio_input_start: DW ;Endereço de memória do primeiro byte do display que conté
 ;stdio_init()
 ;Inicializar o display e o teclado.
 _stdio_init:
-	mov #0, #stdio_cursor ;Mandar limpar o display inteiro
+	clr #stdio_cursor ;Mandar limpar o display inteiro
 	jsr r7, _stdio_clear   ;Limpar o display
 	rts r7
 
@@ -522,16 +522,117 @@ stdio_input_flush_end:
 ;stdio_anykey()
 ;Pausar o programa até que uma tecla qualquer seja pressionada.
 _stdio_anykey:
-	mov display+35, r5 ;Guardar o último byte do display
+	mov display+35, r4 ;Guardar o último byte do display
 	mov #h3E, display+35 ;Desenhar '>' no último byte do display
-	clr tecst
+	jsr r7, _isr_waitfor_keyboard
 
-stdio_anykey_loop:
-	tst tecst
-	beq stdio_anykey_loop
+	mov r4, display+35 ;Recuperar o último byte do display
+	rts r7
 
-	mov r5, display+35 ;Recuperar o último byte do display
+;+-------------------------------------------------------------------------------------------------+
+
+; <isr>
+
+;Ponteiro para a subrotina a ser chamada quando ocorrer uma interrupção do timer.
+isr_timer:    DW 0
+
+;Ponteiro para a subrotina a ser chamada quando ocorrer uma interrupção do teclado.
+;Dentro da ISR do teclado, tecdt contém o caractere pressionado e não é alterado.
+;O usuário só poderá inserir um novo caractere após a ISR do teclado terminar.
+isr_keyboard: DW 0
+
+
+;isr_init()
+;Inicializar a rotina de interrupções.
+_isr_init:
+	clr isr_timer ;Null
+	clr isr_keyboard ;Null
+	mov #i_isr_routine, ivet
+	mov #h80, inte
+	clr ints
+	rts r7
+
+
+;isr_enable_timer()
+_isr_enable_timer:
+	or #h01, inte  ;Habilitar interrupção do timer
+	and #hFE, ints ;Limpar status do timer
+	rts r7
+
+
+;isr_disable_timer()
+_isr_disable_timer:
+	and #hFE, inte ;Desabilitar interrupção do timer
+	clr isr_timer  ;isr_timer = NULL
+	rts r7
+
+
+;isr_enable_keyboard()
+_isr_enable_keyboard:
+	or #h02, inte  ;Habilitar interrupção do teclado
+	and #hFD, ints ;Limpar status do teclado
+	clr tecst      ;Limpar status do teclado
+	rts r7
+
+
+;isr_disable_keyboard()
+_isr_disable_keyboard:
+	and #hFD, inte   ;Desabilitar interrupção do teclado
+	clr isr_keyboard ;isr_keyboard = NULL
+	rts r7
+
+
+;Rotina a ser chamada quando ocorrer uma interrupção
+i_isr_routine:
+isr_routine_test_timer:
+	tst isr_timer
+	beq isr_routine_test_keyboard ;isr_timer é NULL
 	
+	;Interrupção de timer está habilitada
+	mov ints, -(r6) ;Evitando utilizar os registradores de uso geral para poderem servir como uma interface
+	and #h01, (r6)+ ;entre o programa e a interrupção
+	beq isr_routine_test_keyboard ;Timer não causou a interrupção
+
+	;Timer causou a interrupção
+	mov isr_timer, -(r6)
+	jsr r7, ((r6)+)
+	and #hFE, ints ;Limpar status do timer
+
+isr_routine_test_keyboard:
+	tst isr_keyboard
+	beq isr_routine_end ;isr_keyboard é NULL
+
+	;Interrupção de teclado está habilitada
+	mov ints, -(r6)
+	and #h02, (r6)+
+	beq isr_routine_end ;Teclado não causou a interrupção
+
+	;Teclado causou a interrupção
+	mov isr_keyboard, -(r6)
+	jsr r7, ((r6)+)
+	and #hFD, ints   ;Limpar status do teclado
+	clr tecst        ;Permitir que o teclado cause outra interrupção
+
+isr_routine_end:
+	rti
+
+
+;isr_waitfor_keyboard()
+;Pausar o programa até que uma tecla seja pressionada.
+_isr_waitfor_keyboard:
+	mov #_isr_waitfor_keyboard_interrupt, isr_keyboard
+	jsr r7, _isr_enable_keyboard
+	clr r0
+
+isr_waitfor_keyboard_loop:
+	tst r0
+	beq isr_waitfor_keyboard_loop
+
+	jsr r7, _isr_disable_keyboard
+	rts r7
+
+_isr_waitfor_keyboard_interrupt:
+	inc r0
 	rts r7
 
 
