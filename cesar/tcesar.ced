@@ -29,7 +29,7 @@ txt_enter_word: DAW 'Insira a palavra secreta', 0
 txt_enter_word_prompt: DAW 'Palavra: ', 0
 txt_enter_lives: DAW 'Quantas vidas (1-99): ', 0
 txt_enter_lives_invalid: DAW 'Valor invalido!', 0
-txt_symbol_heart: DAW 'S2', 0
+txt_symbol_heart: DAW 'Vidas: ', 0
 txt_space: DAW ' ', 0
 
 
@@ -131,12 +131,9 @@ game_loop:
 	mov #secret_word_hidden, r2
 	jsr r7, _stdio_print ;Imprimir a palavra secreta à esquerda
 
-	mov #display+31, stdio_cursor
+	mov #display+27, stdio_cursor
 	mov #txt_symbol_heart, r2
 	jsr r7, _stdio_print ;Imprimir o símbolo de coração à direita
-
-	mov #txt_space, r2
-	jsr r7, _stdio_print ;Imprimir um espaço entre o símbolo de coração e o número de vidas
 
 	mov #lives, r2 ;Já está em ASCII
 	jsr r7, _stdio_print ;Imprimir o número de vidas à direita
