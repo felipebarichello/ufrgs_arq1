@@ -55,6 +55,7 @@ txt_press_any_3: DAW 'estiver presente', 0
 txt_welcome: DAW 'Bem-vindo(a) a Iulius Caesar', 0
 txt_enter_word: DAW 'Insira a palavra secreta', 0
 txt_enter_word_prompt: DAW 'Palavra: ', 0
+txt_enter_word_invalid: DAW 'Palavra invalida!', 0
 txt_enter_lives: DAW 'Quantas vidas (1-99): ', 0
 txt_enter_lives_invalid: DAW 'Valor invalido!', 0
 txt_symbol_heart: DAW 'Vidas: ', 0
@@ -81,7 +82,7 @@ __main:
 	; mov #'7', lives+2
 	; clr lives+4 ;Null terminator
 
-	; jmp game_start
+	; jmp game_setup
 	;[/DEBUG]
 
 	;Mensagens ao jogador	
@@ -101,15 +102,48 @@ __main:
 	jsr r7, _print_and_wait
 
 ;Inserir a palavra secreta
-enter_word_prompt:
+enter_word:
 	;Solicitar a palavra secreta 
 	mov #txt_enter_word_prompt, r2
 	jsr r7, _stdio_print
 	jsr r7, _stdio_in
 
-	;Extrair a palavra secreta do usuário e converter para maiúsculas
+	;Extrair a palavra secreta do usuário e converter para maiúsculas caso seja válida
 	mov #secret_word, r3
 	jsr r7, _stdio_input_flush_bytes ;Como array de bytes, conforme a especificação do trabalho
+	mov #secret_word-1, r2
+
+	;Primeira verificação: verificar se está vazia
+	mov (r2), r0
+	and #h00FF, r0 ;Trata apenas o byte menos significativo
+	beq enter_word_invalid
+
+;Verificar se a palavra secreta inserida é válida
+enter_word_loop:
+	;Verificar se o caractere é válido
+	jsr r7, _game_valid_char
+	beq enter_word_invalid
+
+	;É válido. Próximo loop.
+	inc r2
+	mov (r2), r0
+	and #h00FF, r0 ;Trata apenas o byte menos significativo
+
+	;Se chegar no null terminator, a palavra é válida
+	;Senão, continuar o loop
+	bne enter_word_loop
+	br enter_word_valid
+
+enter_word_invalid:
+	jsr r7, _stdio_clear
+	mov #txt_enter_word_invalid, r2
+	jsr r7, _stdio_print
+	jsr r7, _stdio_anykey
+	
+	jsr r7, _stdio_clear
+	br enter_word
+
+enter_word_valid:
 	jsr r7, _str_to_upper_bytes ;Como array de bytes, conforme a especificação do trabalho
 
 enter_lives_loop:
@@ -120,7 +154,7 @@ enter_lives_loop:
 	mov #strbuf36, r3
 	jsr r7, _stdio_input_flush
 	jsr r7, _set_lives
-	bne game_start
+	bne game_setup
 
  	;Erro parseando o número de vidas
 	jsr r7, _stdio_clear
@@ -129,7 +163,7 @@ enter_lives_loop:
 	jsr r7, _stdio_anykey
 	br enter_lives_loop
 
-game_start:
+game_setup:
 	jsr r7, _stdio_clear
 
 	clr clock
@@ -144,7 +178,7 @@ game_hide_word_loop:
 	beq game_hide_word_end
 	
 	inc r3
-	cmp r0, #' '
+	cmp r0, #'-'
 	beq game_hide_word_skip_replace
 
 	mov #'_', r0
@@ -154,24 +188,34 @@ game_hide_word_skip_replace:
 	br game_hide_word_loop
 
 game_hide_word_end:
-	;Iniciar o timer com interrupção
-	mov #_update_timer, isr_timer
+game_setup_interrupt:
+	;Configurar a interrupção do teclado
+	mov #_game_guess, isr_keyboard
+	jsr r7, _isr_enable_keyboard
+
+	;Configurar a interrupção do timer
+	mov #_game_update_timer, isr_timer
 	jsr r7, _isr_enable_timer
-	mov #250, timdt
+	mov #250, timdt ;Ativar o timer
 
+;Atualizar o diplay enquanto o jogador ainda tem vidas
 game_loop:
-	jsr r7, _stdio_clear
+	;Checar se o jogador ainda tem vidas
+	; tst lives
+	;...
 
-	mov #secret_word_hidden, r2
-	jsr r7, _stdio_print ;Imprimir a palavra secreta à esquerda
+	jsr r7, _game_draw
+	br game_loop
 
-	mov #display+27, stdio_cursor
-	mov #txt_symbol_heart, r2
-	jsr r7, _stdio_print ;Imprimir texto de vidas à direita
 
-	mov #lives, r2 ;Já está em ASCII
-	jsr r7, _stdio_print ;Imprimir o número de vidas à direita
+;As vidas acabaram
+game_lost:
 
+;A palavra foi adivinhada
+game_won:
+
+;Procedimentos comuns a ganhar e perder no fim do jogo
+game_over:
 	rts r7
 
 
@@ -180,6 +224,39 @@ _print_and_wait:
 	jsr r7, _stdio_print
 	jsr r7, _stdio_anykey
 	jsr r7, _stdio_clear
+	rts r7
+
+
+;game_valid_char(char r0) : r1
+;Verificar se o caractere em r0 é um caractere válido para a palavra secreta (letra ou hífen).
+;Retorna 1 caso seja válido, 0 caso contrário
+_game_valid_char:
+	;Testar maiúsculas
+	cmp r0, #'Z'
+	bhi game_valid_char_skip_upper
+
+	cmp r0, #'A'
+	bcc game_valid_char_true
+
+	;Testar hífen
+	cmp r0, #'-'
+	beq game_valid_char_true
+	br game_valid_char_false
+
+game_valid_char_skip_upper:
+	;Testar minúsculas
+	cmp r0, #'a'
+	bcs game_valid_char_false
+
+	cmp r0, #'z'
+	bhi game_valid_char_false
+
+game_valid_char_true:
+	mov #1, r1
+	rts r7
+
+game_valid_char_false:
+	clr r1
 	rts r7
 
 
@@ -235,11 +312,88 @@ set_lives_false:
 	rts r7
 
 
-;update_timer()
+;game_update_timer()
 ;Interrupção do timer.
-_update_timer:
+_game_update_timer:
 	inc clock
 	rts r7
+
+
+;game_guess()
+;Interrupção do teclado.
+;Tentativa do jogador de adivinhar uma letra da palavra secreta.
+_game_guess:
+	mov r0, -(r6) ;Armazenar r0
+
+	mov tecdt, r0
+
+	;Verificar se o caractere é válido
+	jsr r7, _game_valid_char
+	beq game_guess_invalid ;Branch se caractere é inválido
+
+	;Caractere é válido
+	mov r1, -(r6) ;Armazenar r1
+	mov r2, -(r6) ;Armazenar r2
+	mov r3, -(r6) ;Armazenar r3
+
+	;Converter para maiúsculas
+	cmp r0, #'a'
+	bcs game_guess_skip_upper ;Não é minúscula. Pular to-upper
+
+	sub #32, r0 ;'A' - 'a' = -32
+
+game_guess_skip_upper:
+	;TODO: Verificar se o caractere já foi usado
+
+	mov #secret_word-1, r2
+	clr r3 ;r3 é uma flag que indica se o caractere foi encontrado alguma vez
+
+;Verificar se o caractere está contido na palavra secreta
+game_guess_loop:
+	mov (r2), r1
+	and #h00FF, r1 ;Trata apenas o byte menos significativo
+	beq game_guess_end ;Termina se for null
+	inc r2
+
+	cmp r1, r0 ;Testa se o caractere inserido é igual ao caractere da palavra secreta sendo testado
+	bne game_guess_loop ;Se não for, testar o próximo caractere
+
+;Caractere foi encontrado
+game_guess_found:
+	inc r3 ;Indica que o caractere foi encontrado
+	sub #secret_word, r2 ;r2 agora contém o offset do caractere na palavra secreta
+	asl r2 ;A palavra secreta é array de bytes, enquanto a palavra secreta escondida é array de words
+	mov r0, secret_word_hidden(r2) ;Substituir o caractere na palavra secreta escondida
+	br game_guess_loop
+
+game_guess_end:
+	mov (r6)+, r3 ;Restaurar r3
+	mov (r6)+, r2 ;Restaurar r2
+	mov (r6)+, r1 ;Restaurar r1
+
+game_guess_invalid:
+	mov (r6)+, r0 ;Restaurar r0
+	rts r7
+
+
+;game_draw()
+;Atualizar o display.
+_game_draw:
+	jsr r7, _stdio_free ;"Limpar" o display sem alterar o conteúdo. É mais otimizado que _stdio_clear.
+
+	mov #secret_word_hidden, r2
+	jsr r7, _stdio_print ;Imprimir a palavra secreta à esquerda
+
+	mov #display+27, stdio_cursor
+	mov #txt_symbol_heart, r2
+	jsr r7, _stdio_print ;Imprimir texto de vidas à direita
+
+	mov #lives, r2 ;Já está em ASCII
+	jsr r7, _stdio_print ;Imprimir o número de vidas à direita
+
+	rts r7
+
+
 
 
 ;+=================================================================================================+
@@ -280,7 +434,6 @@ str_to_upper_end:
 _str_to_upper_bytes:
 	mov r3, r2
 	dec r2 ;Começar do byte anterior ao buffer
-	hlt
 
 str_to_upper_bytes_loop:
 	;Salva o valor do byte anterior ao buffer.
@@ -628,9 +781,11 @@ _stdio_anykey:
 ; <isr>
 
 ;Ponteiro para a subrotina a ser chamada quando ocorrer uma interrupção do timer.
+;É uma camada de abstração por cima do IVET
 isr_timer:    DW 0
 
 ;Ponteiro para a subrotina a ser chamada quando ocorrer uma interrupção do teclado.
+;É uma camada de abstração por cima do IVET
 ;Dentro da ISR do teclado, tecdt contém o caractere pressionado e não é alterado.
 ;O usuário só poderá inserir um novo caractere após a ISR do teclado terminar.
 isr_keyboard: DW 0
@@ -648,6 +803,7 @@ _isr_init:
 
 
 ;isr_enable_timer()
+;Habilitar a interrupção do timer
 _isr_enable_timer:
 	or #h01, inte  ;Habilitar interrupção do timer
 	and #hFE, ints ;Limpar status do timer
@@ -655,6 +811,7 @@ _isr_enable_timer:
 
 
 ;isr_disable_timer()
+;Desabilitar a interrupção do timer
 _isr_disable_timer:
 	and #hFE, inte ;Desabilitar interrupção do timer
 	clr isr_timer  ;isr_timer = NULL
@@ -662,6 +819,7 @@ _isr_disable_timer:
 
 
 ;isr_enable_keyboard()
+;Habilitar a interrupção do teclado
 _isr_enable_keyboard:
 	or #h02, inte  ;Habilitar interrupção do teclado
 	and #hFD, ints ;Limpar status do teclado
@@ -670,13 +828,21 @@ _isr_enable_keyboard:
 
 
 ;isr_disable_keyboard()
+;Desabilitar a interrupção do teclado
 _isr_disable_keyboard:
 	and #hFD, inte   ;Desabilitar interrupção do teclado
 	clr isr_keyboard ;isr_keyboard = NULL
 	rts r7
 
 
-;Rotina a ser chamada quando ocorrer uma interrupção
+;isr_routine()
+;Rotina a ser chamada quando ocorrer uma interrupção de qualquer natureza.
+;É uma camada de abstração por cima de colocar o endereço da ISR no IVET.
+;No lugar disso, esta subrotina deve ser colocada no IVET através de isr_init(), e a subrotina
+;que de fato trata a interrupção deve ser colocada em isr_timer ou isr_keyboard, para timer e
+;teclado, respectivamente.
+;É necessário salvar e restaurar todos os registradores de uso geral utilizados no tratador de
+;interrupção.
 i_isr_routine:
 isr_routine_test_timer:
 	tst isr_timer
