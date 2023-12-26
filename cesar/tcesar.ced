@@ -335,11 +335,7 @@ str_to_lower_end:
 
 ;str_from_u16(u16 r0, string r5)
 ;Converte o inteiro unsigned para null-terminated string
-;r0: Endereço do algarismo mais significativo não-nulo ou zero caso todos os algarismos sejam nulos
-;r1: #10
-;r2: -
-;r3: -
-;r4: -
+;Retorna em r0 o endereço do algarismo mais significativo não-nulo ou zero caso todos os algarismos sejam nulos
 _str_from_u16:
 	add #10, r5  ;r5 agora aponta para o último caractere da string
 	clr (r5)     ;Null terminator
