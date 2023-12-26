@@ -167,7 +167,7 @@ game_loop:
 
 	mov #display+27, stdio_cursor
 	mov #txt_symbol_heart, r2
-	jsr r7, _stdio_print ;Imprimir o símbolo de coração à direita
+	jsr r7, _stdio_print ;Imprimir texto de vidas à direita
 
 	mov #lives, r2 ;Já está em ASCII
 	jsr r7, _stdio_print ;Imprimir o número de vidas à direita
