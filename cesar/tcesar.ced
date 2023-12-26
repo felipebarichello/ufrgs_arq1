@@ -1,3 +1,25 @@
+;ENDEREÇOS FIXOS (conforme as especificações do trabalho)
+
+ORG h8000
+
+;[DEBUG]
+lives_new_: DW ;Placeholder para o número de vidas
+;[/DEBUG]
+
+;A palavra secreta a ser adivinhada. É inserida pelo usuário. Tem no máximo 25 caracteres.
+;É uma array de bytes, conforme as especificações do trabalho,
+;embora seja muito mais pesado computacionalmente e precisar de tratamento especial
+;já que o Cesar não trabalha naturalmente com 8 bits.
+secret_word: DAB [27] 
+
+
+;+=================================================================================================+
+
+
+;INICIALIZAÇÃO (independe do programa)
+
+ORG 0
+
 null: DW 0 ;Endereço nulo
 
 ; --- STARTUP ---
@@ -16,11 +38,17 @@ null: DW 0 ;Endereço nulo
 ;/[DEBUG]
 debug_warning: DAW 'ATENCAO: MODO DEBUG ATIVADO', 0
 ;[/DEBUG]
-secret_word: DAW [37] ;Palavra secreta
-secret_word_hidden: DAW [37] ;Palavra secreta com os caracteres não descobertos substituídos por '_'
+
+;Palavra secreta com os caracteres não descobertos substituídos por '_'.
+;É basicamente um buffer do que é exibido no display para não fazer operações diretamente no display,
+;o que é má prática e impediria o uso do display para outras coisas, como exibir mensagens de "letra já usada".
+secret_word_hidden: DAW [37] 
+
 lives: DAW [3] ;Número de vidas, em ASCII. Deixar em ASCII é mais otimizado para imprimir no display.
 clock: DW ;Quantos ticks de 250ms se passaram desde o início do jogo
 strbuf36: DAW [37] ;Buffer de string do tamanho do display
+
+;Strings estáticas
 txt_press_any_1: DAW 'Pressione qualquer tecla para', 0
 txt_press_any_2: DAW 'continuar quando o icone a direita', 0
 txt_press_any_3: DAW 'estiver presente', 0
@@ -30,7 +58,6 @@ txt_enter_word_prompt: DAW 'Palavra: ', 0
 txt_enter_lives: DAW 'Quantas vidas (1-99): ', 0
 txt_enter_lives_invalid: DAW 'Valor invalido!', 0
 txt_symbol_heart: DAW 'Vidas: ', 0
-txt_space: DAW ' ', 0
 
 
 ;PROGRAMA
@@ -56,7 +83,8 @@ __main:
 
 	; jmp game_start
 	;[/DEBUG]
-	
+
+	;Mensagens ao jogador	
 	mov #txt_press_any_1, r2
 	jsr r7, _print_and_wait
 
@@ -72,13 +100,17 @@ __main:
 	mov #txt_enter_word, r2
 	jsr r7, _print_and_wait
 
+;Inserir a palavra secreta
 enter_word_prompt:
+	;Solicitar a palavra secreta 
 	mov #txt_enter_word_prompt, r2
 	jsr r7, _stdio_print
 	jsr r7, _stdio_in
+
+	;Extrair a palavra secreta do usuário e converter para maiúsculas
 	mov #secret_word, r3
-	jsr r7, _stdio_input_flush
-	jsr r7, _str_to_upper
+	jsr r7, _stdio_input_flush_bytes ;Como array de bytes, conforme a especificação do trabalho
+	jsr r7, _str_to_upper_bytes ;Como array de bytes, conforme a especificação do trabalho
 
 enter_lives_loop:
 	jsr r7, _stdio_clear
@@ -103,13 +135,15 @@ game_start:
 	clr clock
 
 	;Copiar a palavra secreta para a palavra secreta escondida, substituindo os caracteres por '_'
-	mov #secret_word, r3
+	mov #secret_word-1, r3
 	mov #secret_word_hidden, r4
 
 game_hide_word_loop:
-	mov (r3)+, r0
+	mov (r3), r0
+	and #h00FF, r0 ;Trata apenas o byte menos significativo
 	beq game_hide_word_end
 	
+	inc r3
 	cmp r0, #' '
 	beq game_hide_word_skip_replace
 
@@ -233,11 +267,45 @@ str_to_upper_loop:
 
 	;r4 contém um caractere minúsculo
 	;Converter para maiúsculo
-	add #-32, r4 ;'A' - 'a' = -32
+	sub #32, r4 ;'A' - 'a' = -32
 	mov r4, -2(r2)
 	br str_to_upper_loop
 
 str_to_upper_end:
+	rts r7
+
+
+;str_to_upper_bytes(buffer r3)
+;Faz a mesma coisa que str_to_upper() mas sobre uma array de bytes.
+_str_to_upper_bytes:
+	mov r3, r2
+	dec r2 ;Começar do byte anterior ao buffer
+	hlt
+
+str_to_upper_bytes_loop:
+	;Salva o valor do byte anterior ao buffer.
+	mov (r2), r5
+	beq str_to_upper_bytes_end ;Encerra se for null
+	mov r5, r4 ;Perceba que, aqui, (r2) = r5 = r4
+	and #h00FF, r4 ;Age apenas sobre o byte menos significativo.
+	and #hFF00, r5 ;Salva o byte mais significativo original (poderá ser sobrescrito).
+	
+	inc r2
+	cmp r4, #'a'
+	bcs str_to_upper_bytes_loop
+
+	cmp r4, #'z'
+	bhi str_to_upper_bytes_loop
+
+	;r4 contém um caractere minúsculo
+	;Converter para maiúsculo
+	sub #32, r4 ;'A' - 'a' = -32
+	mov r4, -1(r2)
+	add r5, -1(r2) ;Restaura o byte anterior.
+	br str_to_upper_bytes_loop
+
+str_to_upper_bytes_end:
+	add r5, (r2) ;Restaura o byte anterior.
 	rts r7
 
 
@@ -497,21 +565,54 @@ stdio_in_default:
 ;stdio_input_flush(buffer r3)
 ;Armazenar o conteúdo do display no buffer cujo endereço inicial está em r3 e limpar o display.
 _stdio_input_flush:
-	mov r3, r2
+	mov r3, r2 ;Copiar r3 para não alterar r3
 	mov stdio_input_start, r4 ;Iterador
 	sub #display, r4 ;r4 agora contém o offset do buffer inicial
 	mov #36, r5
 
 ;Loop começa em `stdio_input_start` e termina em `stdio_cursor`
 stdio_input_flush_loop:
-	mov display(r4), (r2)+
-	beq stdio_input_flush_end
-	clr display(r4)
+	mov display(r4), (r2)+ ;Copia o caractere
+	beq stdio_input_flush_end ;Termina se for null
+
+	clr display(r4) ;Limpa o caractere do display
+
 	inc r4
 	cmp r4, r5
 	bcs stdio_input_flush_loop ;Quando `r4 = 36`, o buffer está cheio
 
 stdio_input_flush_end:
+	mov stdio_input_start, stdio_cursor
+	rts r7
+
+
+;stdio_input_flush_bytes(buffer r3)
+;Faz a mesma coisa que stdio_input_flush() mas para uma array de bytes.
+_stdio_input_flush_bytes:
+	mov r3, r2 ;Copiar r3 para não alterar r3
+	dec r2 ;Começar do byte anterior ao buffer
+	mov stdio_input_start, r4 ;Iterador
+	sub #display, r4 ;r4 agora contém o offset do buffer inicial
+
+;Loop começa em `stdio_input_start` e termina em `stdio_cursor`
+stdio_input_flush_bytes_loop:
+	mov (r2), r5 ;Salva o valor anterior do byte anterior ao buffer.
+	and #hFF00, r5 ;Salva apenas o byte mais significativo.
+
+	mov display(r4), (r2) ;Copia o caractere (apenas a parte mais significativa, sobrescrevendo o byte anterior com 0)
+	beq stdio_input_flush_bytes_end ;Acaba se for null
+
+	add r5, (r2) ;Restaura o byte anterior.
+
+	clr display(r4) ;Limpa o caractere do display
+
+	inc r2
+	inc r4
+	cmp r4, #36
+	bcs stdio_input_flush_bytes_loop ;Quando `r4 = 36`, o buffer está cheio
+
+stdio_input_flush_bytes_end:
+	add r5, (r2) ;Restaura o byte anterior uma última vez.
 	mov stdio_input_start, stdio_cursor
 	rts r7
 
