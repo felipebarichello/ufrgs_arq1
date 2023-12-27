@@ -22,10 +22,11 @@ null: DW 0 ;Endereço nulo
 
 ; --- STARTUP ---
 
+__startup:
 	mov #stack, r6
 	jsr r7, __main
 	hlt
-	jmp 0 ;Zerar o PC caso o usuário não tenha feito isso após o fim do programa
+	jmp __startup ;Zerar o PC caso o usuário não tenha feito isso após o fim do programa
 
 
 ;+=================================================================================================+
