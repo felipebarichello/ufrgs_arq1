@@ -55,6 +55,7 @@ txt_ui_lives: DAW 'Vidas: ', 0
 txt_colon: DAW ':', 0
 txt_game_lost: DAW 'Voce perdeu!', 0
 txt_game_won: DAW 'Voce venceu!', 0
+txt_time_elapsed: DAW 'Tempo de jogo: ', 0
 
 
 ;PROGRAMA
@@ -221,13 +222,20 @@ game_setup_interrupt:
 
 ;Atualizar o diplay enquanto o jogador ainda tem vidas
 game_loop:
-	;Checar se o jogador ainda tem vidas
+	;Verificar se o jogador ainda tem vidas
+	;É melhor utilizar `ble` em vez de `beq` para o caso de uma situação inesperada causar `lives` negativo 
 	tst lives
-	beq game_lost
+	ble game_lost ;`ble`, junto com tst, checa se N ou Z estão ligados. `cmp` não é necessário.
+
+	;Verificar se a palavra foi descoberta
+	mov #secret_word_hidden, r2
+	mov #'_', r1
+	jsr r7, _str_find
+	tst r2
+	beq game_won
 
 	jsr r7, _game_draw
 	br game_loop
-
 
 ;As vidas acabaram
 game_lost:
@@ -236,7 +244,6 @@ game_lost:
 	mov #txt_game_lost, r2
 	jsr r7, _stdio_print
 	br game_over
-
 
 ;A palavra foi adivinhada
 game_won:
@@ -248,6 +255,9 @@ game_won:
 ;Procedimentos comuns a ganhar e perder no fim do jogo
 game_over:
 	mov #display+15, stdio_cursor ;Posicionar o cursor para escrever o timer à direita
+
+	mov #txt_time_elapsed, r2 ;Escrever "Tempo de jogo:" no display
+	jsr r7, _stdio_print
 
 	;Escrever o timer no display
 	mov clock, r0 ;Número de ticks desde o início do jogo (250 ms)
@@ -426,6 +436,27 @@ _game_draw:
 ;+-------------------------------------------------------------------------------------------------+
 
 ; <str>
+
+
+;str_find(string r2, char r1) : r2
+;Procurar o caractere r1 na string r2.
+;Retorna o endereço do caractere em r2 caso seja encontrado, 0 caso contrário
+_str_find:
+str_find_loop:
+	mov (r2)+, r0
+	beq str_find_not_found
+
+	cmp r0, r1
+	bne str_find_loop ;Não é o caractere procurado. Testar o próximo caractere.
+
+;Caractere encontrado. r2 contém o endereço do próximo caractere.
+str_find_found:
+	sub #2, r2 ;r2 agora contém o endereço do caractere encontrado
+	rts r7
+
+str_find_not_found:
+	clr r2
+	rts r7
 
 
 ;str_to_upper(buffer r3)
