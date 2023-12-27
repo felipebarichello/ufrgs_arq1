@@ -363,9 +363,10 @@ game_guess_loop:
 ;Caractere foi encontrado
 game_guess_found:
 	inc r3 ;Indica que o caractere foi encontrado
-	sub #secret_word, r2 ;r2 agora contém o offset do caractere na palavra secreta
-	asl r2 ;A palavra secreta é array de bytes, enquanto a palavra secreta escondida é array de words
-	mov r0, secret_word_hidden(r2) ;Substituir o caractere na palavra secreta escondida
+	mov r2, r1
+	sub #secret_word, r1 ;r1 agora contém o offset do caractere na palavra secreta
+	asl r1 ;A palavra secreta é array de bytes, enquanto a palavra secreta escondida é array de words
+	mov r0, secret_word_hidden(r1) ;Substituir o caractere na palavra secreta escondida
 	br game_guess_loop
 
 game_guess_end:
