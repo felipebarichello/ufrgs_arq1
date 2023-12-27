@@ -2,9 +2,7 @@
 
 ORG h8000
 
-;[DEBUG]
-lives_new_: DW ;Placeholder para o número de vidas
-;[/DEBUG]
+lives: DW ;Número de vidas do jogador
 
 ;A palavra secreta a ser adivinhada. É inserida pelo usuário. Tem no máximo 25 caracteres.
 ;É uma array de bytes, conforme as especificações do trabalho,
@@ -35,16 +33,11 @@ null: DW 0 ;Endereço nulo
 
 ;VARIÁVEIS
 
-;/[DEBUG]
-debug_warning: DAW 'ATENCAO: MODO DEBUG ATIVADO', 0
-;[/DEBUG]
-
 ;Palavra secreta com os caracteres não descobertos substituídos por '_'.
 ;É basicamente um buffer do que é exibido no display para não fazer operações diretamente no display,
 ;o que é má prática e impediria o uso do display para outras coisas, como exibir mensagens de "letra já usada".
 secret_word_hidden: DAW [37] 
 
-lives: DAW [3] ;Número de vidas, em ASCII. Deixar em ASCII é mais otimizado para imprimir no display.
 clock: DW ;Quantos ticks de 250ms se passaram desde o início do jogo
 strbuf36: DAW [37] ;Buffer de string do tamanho do display
 
@@ -58,7 +51,10 @@ txt_enter_word_prompt: DAW 'Palavra: ', 0
 txt_enter_word_invalid: DAW 'Palavra invalida!', 0
 txt_enter_lives: DAW 'Quantas vidas (1-99): ', 0
 txt_enter_lives_invalid: DAW 'Valor invalido!', 0
-txt_symbol_heart: DAW 'Vidas: ', 0
+txt_ui_lives: DAW 'Vidas: ', 0
+txt_colon: DAW ':', 0
+txt_game_lost: DAW 'Voce perdeu!', 0
+txt_game_won: DAW 'Voce venceu!', 0
 
 
 ;PROGRAMA
@@ -66,24 +62,6 @@ txt_symbol_heart: DAW 'Vidas: ', 0
 __main:
 	jsr r7, _stdio_init
 	jsr r7, _isr_init
-
-	;[DEBUG]
-	; mov #debug_warning, r2
-	; jsr r7, _print_and_wait
-
-	; mov #'D', secret_word
-	; mov #'e', secret_word+2
-	; mov #'B', secret_word+4
-	; mov #'u', secret_word+6
-	; mov #'G', secret_word+8
-	; clr secret_word+10 ;Null terminator
-
-	; mov #'0', lives
-	; mov #'7', lives+2
-	; clr lives+4 ;Null terminator
-
-	; jmp game_setup
-	;[/DEBUG]
 
 	;Mensagens ao jogador	
 	mov #txt_press_any_1, r2
@@ -146,22 +124,65 @@ enter_word_invalid:
 enter_word_valid:
 	jsr r7, _str_to_upper_bytes ;Como array de bytes, conforme a especificação do trabalho
 
-enter_lives_loop:
+enter_lives:
+	;Pedir o número de vidas ao jogador
 	jsr r7, _stdio_clear
 	mov #txt_enter_lives, r2
 	jsr r7, _stdio_print
+
+	;Receber o número de vidas do jogador
 	jsr r7, _stdio_in
 	mov #strbuf36, r3
 	jsr r7, _stdio_input_flush
-	jsr r7, _set_lives
-	bne game_setup
 
- 	;Erro parseando o número de vidas
+	;Verificar se não está vazio
+	mov strbuf36, r0
+	beq enter_lives_invalid
+
+	;O número de vidas, em ASCII, pode ter no máximo 2 dígitos
+	tst strbuf36+4
+	bne enter_lives_invalid
+
+	;Verificar se tem 1 ou 2 dígitos
+	mov strbuf36+2, r1
+	bne enter_lives_two_digits
+
+	;Um dígito
+	;Tratar o único dígito como as unidades e seta as dezenas para '0'
+	mov r0, r1
+	mov #'0', r0
+
+;Tem dois dígitos
+;O primeiro caractere (r1) como as dezenas e o segundo (r0) como unidades
+enter_lives_two_digits:
+	cmp r1, #'9' ;Verificar se a unidade é maior que 9 (inválido)
+	bhi enter_lives_invalid
+
+	sub #'0', r1 ;Converter as unidades de ASCII e verificar se é menor que 0 (inválido)
+	bcs enter_lives_invalid
+
+	mov r1, -(r6) ;Armazenar as unidades
+
+	cmp r0, #'9' ;Verificar se a dezena é maior que 9 (inválido)
+	bhi enter_lives_invalid
+
+	sub #'0', r0 ;Converter as dezenas de ASCII e verificar se é menor que 0 (inválido)
+	bcs enter_lives_invalid
+
+	mov #10, r1
+	jsr r7, _math_mul_u16 ;Multiplicar as dezenas por 10. Essa operação não pode causar overflow.
+	add (r6)+, r2 ;Somar as unidades. r0 agora contém um número válido de vidas.
+	mov r2, lives
+	br game_setup
+
+;Erro parseando o número de vidas
+;O jogador deverá inserir um novo número
+enter_lives_invalid:
 	jsr r7, _stdio_clear
 	mov #txt_enter_lives_invalid, r2
 	jsr r7, _stdio_print
 	jsr r7, _stdio_anykey
-	br enter_lives_loop
+	br enter_lives
 
 game_setup:
 	jsr r7, _stdio_clear
@@ -201,8 +222,8 @@ game_setup_interrupt:
 ;Atualizar o diplay enquanto o jogador ainda tem vidas
 game_loop:
 	;Checar se o jogador ainda tem vidas
-	; tst lives
-	;...
+	tst lives
+	beq game_lost
 
 	jsr r7, _game_draw
 	br game_loop
@@ -210,12 +231,45 @@ game_loop:
 
 ;As vidas acabaram
 game_lost:
+	;Escrever "Você perdeu!" no display
+	jsr r7, _stdio_clear
+	mov #txt_game_lost, r2
+	jsr r7, _stdio_print
+	br game_over
+
 
 ;A palavra foi adivinhada
 game_won:
+	;Escrever "Você venceu!" no display
+	jsr r7, _stdio_clear
+	mov #txt_game_won, r2
+	jsr r7, _stdio_print
 
 ;Procedimentos comuns a ganhar e perder no fim do jogo
 game_over:
+	mov #display+15, stdio_cursor ;Posicionar o cursor para escrever o timer à direita
+
+	;Escrever o timer no display
+	mov clock, r0 ;Número de ticks desde o início do jogo (250 ms)
+	asl r0 ;Número de ticks * 2 (500ms)
+	asl r0 ;Segundos desde o início do jogo
+	mov #60, r1 ;60 segundos por minuto
+	jsr r7, _math_div_u16 ;Dividir o número de segundos por 60
+	mov r3, -(r6) ;Armazenar o resto da divisão
+
+	mov #strbuf36, r5 ;Buffer para o qual o tempo será convertido para string
+	mov r2, r0 ;r2 contém o número de minutos
+	jsr r7, _str_from_u16 ;Converter os minutos para string
+	jsr r7, _stdio_print ;Imprimir os minutos
+
+	mov #txt_colon, r2 ;Separador de minutos e segundos
+	jsr r7, _stdio_print ;Imprimir o separador
+	
+	mov #strbuf36, r5
+	mov (r6)+, r0 ;O resto da divisão são os segundos
+	jsr r7, _str_from_u16 ;Converter os segundos para string
+	jsr r7, _stdio_print ;Imprimir os segundos
+
 	rts r7
 
 
@@ -256,58 +310,6 @@ game_valid_char_true:
 	rts r7
 
 game_valid_char_false:
-	clr r1
-	rts r7
-
-
-;set_lives(buffer r3)
-;Verificar se o buffer cujo endereço inicial está em r3 contém um número de vidas válido.
-;Preenche as vidas em `lives` caso seja válido.
-;Retorna 1 caso seja válido, 0 caso contrário.
-_set_lives:
-	mov (r3)+, r4
-	beq set_lives_false ;0 dígitos
-	mov #2, r5 ;No máximo 2 dígitos
-
-set_lives_loop:
-	cmp r4, #'9'
-	bhi set_lives_false ;Caractere não é um dígito
-	cmp r4, #'0'
-	bcs set_lives_false ;Caractere não é um dígito
-
-	;Caractere é um dígito
-	;Novo caractere
-	mov (r3)+, r4
-	beq set_lives_2digits
-	sob r5, set_lives_loop
-	br set_lives_false ;Mais de 2 dígitos
-
-set_lives_2digits:
-	dec r5
-	bne set_lives_padding
-
-	;Dois dígitos
-	mov -6(r3), lives
-	br set_lives_second_digit
-
-set_lives_padding:
-	;Um dígito. Adicionar um zero à esquerda
-	mov #'0', lives
-
-set_lives_second_digit:
-	mov -4(r3), lives+2
-
-	;Verificar se não é 0
-	cmp lives+2, #'0'
-	bne set_lives_true
-	cmp lives, #'0'
-	beq set_lives_false
-
-set_lives_true:
-	mov #1, r1
-	rts r7
-
-set_lives_false:
 	clr r1
 	rts r7
 
@@ -367,6 +369,22 @@ game_guess_found:
 	br game_guess_loop
 
 game_guess_end:
+	tst r3
+	bne game_guess_skip_not_found ;Branch se a letra foi encontrado na palavra
+
+;Letra não foi encontrada
+game_guess_not_found:
+	dec lives ;Decrementar o número de vidas
+
+	bhi game_guess_skip_lost ;Verificar se o jogador ainda tem vidas
+
+	;Vidas acabaram
+	jsr r7, _isr_disable_keyboard ;Bloquear o teclado
+	jsr r7, _isr_disable_timer ;Parar o timer
+	;Devolver o controle do jogo ao loop principal
+
+game_guess_skip_lost:
+game_guess_skip_not_found:
 	mov (r6)+, r3 ;Restaurar r3
 	mov (r6)+, r2 ;Restaurar r2
 	mov (r6)+, r1 ;Restaurar r1
@@ -385,11 +403,15 @@ _game_draw:
 	jsr r7, _stdio_print ;Imprimir a palavra secreta à esquerda
 
 	mov #display+27, stdio_cursor
-	mov #txt_symbol_heart, r2
+	mov #txt_ui_lives, r2
 	jsr r7, _stdio_print ;Imprimir texto de vidas à direita
 
-	mov #lives, r2 ;Já está em ASCII
-	jsr r7, _stdio_print ;Imprimir o número de vidas à direita
+	;Converter para string e imprimir o número de vidas à direita
+	mov lives, r0
+	mov #strbuf36, r5
+	jsr r7, _str_from_u16
+	mov #strbuf36+6, r2
+	jsr r7, _stdio_print
 
 	rts r7
 
@@ -533,6 +555,51 @@ str_from_u16_end:
 ; <math>
 
 
+;math_mul_u16(u16 r0, u16 r1)
+;Multiplicar r0 por r1 e armazena o resultado em r2
+;Se houver overflow, a flag V estará ligada, e r2 não representará o resultado correto
+_math_mul_u16:
+	clr r2 ;r2 é o resultado parcial
+
+	ccc C
+	ror r1 ;Isso fica fora do loop porque o bit mais significativo pode ser 1, então asr não funciona
+	bne math_mul_loop_add ;Entrar no loop
+
+	;A não ser que o multiplicador seja 0
+	;Nesse caso, r2 já está zerado, então retorna
+	rts r7
+
+math_mul_loop:
+	asl r0 ;Deslocar o multiplicando parcial para a esquerda
+	bcs math_mul_loop_carry ;Carry do multiplicando parcial
+
+	asr r1 ;Extrair o próximo bit menos significativo do multiplicador
+	beq math_mul_success ;Terminar quando o multiplicador chegar a zero
+
+;Verificar se deve somar, e se sim, somar
+math_mul_loop_add:
+	bcc math_mul_loop ;Se o bit do multiplicador parcial for 0, não precisa somar.
+
+	add r0, r2 ;Se for 1, somar o multiplicando parcial ao resultado parcial
+	bvc math_mul_loop ;Se não houver overflow, continuar o loop
+	;Senão, terminar com a flag V ligada
+
+math_mul_end:
+	rts r7
+
+;O multiplicador chegou a zero. Realizar a última soma.
+;Sempre haverá a última soma pois senão o multiplicador seria 0 na iteração anterior
+math_mul_success:
+	add r0, r2
+	rts r7 ;V estará ligada caso haja overflow na soma acima
+
+;Houve carry do multiplicando parcial
+;Isso significa que houve overflow, já que se sabe que o multiplicador parcial é maior que zero
+math_mul_loop_carry:
+	scc V ;Ligar a flag V
+	rts r7 ;Terminar com overflow
+
+
 ;math_div_u16(u16 r0, u16 r1)
 ;Divide r0 por r1 e armazena o quociente em r2 e o resto em r3
 ;Caso o divisor seja 0, retorna 0 em r2 e coloca o dividendo em r3
@@ -546,8 +613,7 @@ _math_div_u16:
 
 math_div_u16_loop:
 	;Extrair o bit mais significativo do dividendo
-	ccc C
-	rol r0 ;Não poderia ser com `shl` pois o bit mais significativo se comporta como sinal
+	asl r0
 	rol r3
 
 	;Caso o dividendo parcial seja maior ou igual ao divisor, subtrair o divisor do dividendo parcial
@@ -855,7 +921,7 @@ isr_routine_test_timer:
 
 	;Timer causou a interrupção
 	mov isr_timer, -(r6)
-	jsr r7, ((r6)+)
+	jsr r7, ((r6)+) ;A subrotina deve ser chamada pela stack pois `(isr_timer)` não é válido
 	and #hFE, ints ;Limpar status do timer
 
 isr_routine_test_keyboard:
@@ -869,7 +935,7 @@ isr_routine_test_keyboard:
 
 	;Teclado causou a interrupção
 	mov isr_keyboard, -(r6)
-	jsr r7, ((r6)+)
+	jsr r7, ((r6)+) ;A subrotina deve ser chamada pela stack pois `(isr_timer)` não é válido
 	and #hFD, ints   ;Limpar status do teclado
 	clr tecst        ;Permitir que o teclado cause outra interrupção
 
