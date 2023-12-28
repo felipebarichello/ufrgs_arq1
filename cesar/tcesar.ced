@@ -222,6 +222,8 @@ game_hide_word_skip_replace:
 
 game_hide_word_end:
 game_setup_interrupt:
+	clr (r4) ;Null terminator
+
 	;Configurar a interrupção do teclado
 	mov #_game_guess, isr_keyboard
 	jsr r7, _isr_enable_keyboard
