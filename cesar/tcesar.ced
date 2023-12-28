@@ -98,6 +98,10 @@ enter_word:
 	and #h00FF, r0 ;Trata apenas o byte menos significativo
 	beq enter_word_invalid
 
+	;_game_valid_char recebe qualquer valor não-nulo em r4 para verificar hífen,
+	;e sabe-se que r0 não é nulo, então é seguro colocá-lo em r4
+	mov r0, r4 
+
 ;Verificar se a palavra secreta inserida é válida
 enter_word_loop:
 	;Verificar se o caractere é válido
@@ -308,23 +312,26 @@ _print_and_wait:
 	rts r7
 
 
-;game_valid_char(char r0) : r1
+;game_valid_char(char r0, bool r4) : r1
 ;Verificar se o caractere em r0 é um caractere válido para a palavra secreta (letra ou hífen).
+;Se r4 for 0, não verificar hífen
 ;Retorna 1 caso seja válido, 0 caso contrário
 _game_valid_char:
 	;Testar maiúsculas
 	cmp r0, #'Z'
-	bhi game_valid_char_skip_upper
+	bhi game_valid_char_not_upper
 
 	cmp r0, #'A'
 	bcc game_valid_char_true
 
 	;Testar hífen
+	tst r4 ;Verificar se deve testar hífen. Senão, não é válido.
+	beq game_valid_char_false ;Abaixo de 'A' apenas tem '-'
 	cmp r0, #'-'
 	beq game_valid_char_true
 	br game_valid_char_false
 
-game_valid_char_skip_upper:
+game_valid_char_not_upper:
 	;Testar minúsculas
 	cmp r0, #'a'
 	bcs game_valid_char_false
@@ -353,10 +360,12 @@ _game_update_timer:
 ;Tentativa do jogador de adivinhar uma letra da palavra secreta.
 _game_guess:
 	mov r0, -(r6) ;Armazenar r0
+	mov r4, -(r6) ;Armazenar r4
 
 	mov tecdt, r0
 
 	;Verificar se o caractere é válido
+	clr r4 ;_game_valid_char recebe 0 em r4 para não verificar hífen
 	jsr r7, _game_valid_char
 	beq game_guess_invalid ;Branch se caractere é inválido
 
@@ -418,6 +427,7 @@ game_guess_skip_not_found:
 	mov (r6)+, r1 ;Restaurar r1
 
 game_guess_invalid:
+	mov (r6)+, r4 ;Restaurar r4
 	mov (r6)+, r0 ;Restaurar r0
 	rts r7
 
