@@ -137,44 +137,54 @@ enter_lives:
 	mov #strbuf36, r3
 	jsr r7, _stdio_input_flush
 
-	;Verificar se não está vazio
+	;Verificar se está vazio
 	mov strbuf36, r0
-	beq enter_lives_invalid
+	beq enter_lives_invalid ;Se estiver, é inválido
 
-	;O número de vidas, em ASCII, pode ter no máximo 2 dígitos
-	tst strbuf36+4
-	bne enter_lives_invalid
-
-	;Verificar se tem 1 ou 2 dígitos
+	;Tem pelo menos um dígito
+	;Verificar se tem um segundo dígito
 	mov strbuf36+2, r1
-	bne enter_lives_two_digits
+	bne enter_lives_double_digit ;Se tiver, tratar como dois dígitos
 
-	;Um dígito
-	;Tratar o único dígito como as unidades e seta as dezenas para '0'
-	mov r0, r1
-	mov #'0', r0
+	;Senão, pular a parte que trata as dezenas
+	br enter_lives_single_digit
 
 ;Tem dois dígitos
-;O primeiro caractere (r1) como as dezenas e o segundo (r0) como unidades
-enter_lives_two_digits:
-	cmp r1, #'9' ;Verificar se a unidade é maior que 9 (inválido)
-	bhi enter_lives_invalid
+;Tratar o primeiro caractere (r1) como as dezenas e o segundo (r0) como unidades
+enter_lives_double_digit:
+	;Tem pelo menos dois dígitos
+	;Verificar se há mais de dois dígitos
+	tst strbuf36+4
+	bne enter_lives_invalid ;Se houver, é inválido
 
-	sub #'0', r1 ;Converter as unidades de ASCII e verificar se é menor que 0 (inválido)
-	bcs enter_lives_invalid
-
-	mov r1, -(r6) ;Armazenar as unidades
-
+	;Dezenas
 	cmp r0, #'9' ;Verificar se a dezena é maior que 9 (inválido)
 	bhi enter_lives_invalid
 
 	sub #'0', r0 ;Converter as dezenas de ASCII e verificar se é menor que 0 (inválido)
 	bcs enter_lives_invalid
 
+	mov r1, -(r6) ;Armazenar as unidades
+
 	mov #10, r1
 	jsr r7, _math_mul_u16 ;Multiplicar as dezenas por 10. Essa operação não pode causar overflow.
-	add (r6)+, r2 ;Somar as unidades. r0 agora contém um número válido de vidas.
-	mov r2, lives
+	mov r2, r1 ;Mover o resultado para r1
+
+	mov (r6)+, r0 ;Restaurar as unidades
+
+enter_lives_single_digit:
+	;Unidades
+	cmp r0, #'9' ;Verificar se a unidade é maior que 9 (inválido)
+	bhi enter_lives_invalid
+
+	sub #'0', r0 ;Converter as unidades de ASCII e verificar se é menor que 0 (inválido)
+	bcs enter_lives_invalid
+
+ 	;Somar as unidades às dezenas.
+	;Perceba que, se houver apenas um dígito, r1 = 0
+	add r0, r1
+	
+	mov r1, lives ;Armazenar o número de vidas
 	br game_setup
 
 ;Erro parseando o número de vidas
