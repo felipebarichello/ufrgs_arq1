@@ -265,15 +265,15 @@ game_won:
 
 ;Procedimentos comuns a ganhar e perder no fim do jogo
 game_over:
-	mov #display+15, stdio_cursor ;Posicionar o cursor para escrever o timer à direita
+	mov #display+16, stdio_cursor ;Posicionar o cursor para escrever o timer à direita
 
 	mov #txt_time_elapsed, r2 ;Escrever "Tempo de jogo:" no display
 	jsr r7, _stdio_print
 
 	;Escrever o timer no display
 	mov clock, r0 ;Número de ticks desde o início do jogo (250 ms)
-	asl r0 ;Número de ticks * 2 (500ms)
-	asl r0 ;Segundos desde o início do jogo
+	asr r0 ;Número de ticks / 2 (500ms)
+	asr r0 ;Segundos desde o início do jogo
 	mov #60, r1 ;60 segundos por minuto
 	jsr r7, _math_div_u16 ;Dividir o número de segundos por 60
 	mov r3, -(r6) ;Armazenar o resto da divisão
@@ -281,6 +281,8 @@ game_over:
 	mov #strbuf36, r5 ;Buffer para o qual o tempo será convertido para string
 	mov r2, r0 ;r2 contém o número de minutos
 	jsr r7, _str_from_u16 ;Converter os minutos para string
+	mov r5, r2
+	add #6, r2 ;Escrever apenas os dois últimos dígitos
 	jsr r7, _stdio_print ;Imprimir os minutos
 
 	mov #txt_colon, r2 ;Separador de minutos e segundos
@@ -289,6 +291,8 @@ game_over:
 	mov #strbuf36, r5
 	mov (r6)+, r0 ;O resto da divisão são os segundos
 	jsr r7, _str_from_u16 ;Converter os segundos para string
+	mov r5, r2
+	add #6, r2 ;Escrever apenas os dois últimos dígitos
 	jsr r7, _stdio_print ;Imprimir os segundos
 
 	rts r7
