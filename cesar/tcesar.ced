@@ -991,8 +991,8 @@ isr_routine_test_keyboard:
 	;Teclado causou a interrupção
 	mov isr_keyboard, r0
 	jsr r7, (r0) ;A subrotina deve ser chamada indiretamente pois `(isr_timer)` não é válido
-	and #hFD, ints   ;Limpar status do teclado
-	clr tecst        ;Permitir que o teclado cause outra interrupção
+	and #hFD, ints ;Limpar status do teclado
+	clr tecst ;Permitir que o teclado cause outra interrupção
 
 isr_routine_end:
 	;Restaurar registradores de uso geral
