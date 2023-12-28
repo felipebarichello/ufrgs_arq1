@@ -970,13 +970,13 @@ isr_routine_test_timer:
 	beq isr_routine_test_keyboard ;isr_timer é NULL
 	
 	;Interrupção de timer está habilitada
-	mov ints, -(r6) ;Evitando utilizar os registradores de uso geral para poderem servir como uma interface
-	and #h01, (r6)+ ;entre o programa e a interrupção
+	mov ints, r0
+	and #h01, r0
 	beq isr_routine_test_keyboard ;Timer não causou a interrupção
 
 	;Timer causou a interrupção
-	mov isr_timer, -(r6)
-	jsr r7, ((r6)+) ;A subrotina deve ser chamada pela stack pois `(isr_timer)` não é válido
+	mov isr_timer, r0
+	jsr r7, (r0) ;A subrotina deve ser chamada indiretamente pois `(isr_timer)` não é válido
 	and #hFE, ints ;Limpar status do timer
 
 isr_routine_test_keyboard:
@@ -984,13 +984,13 @@ isr_routine_test_keyboard:
 	beq isr_routine_end ;isr_keyboard é NULL
 
 	;Interrupção de teclado está habilitada
-	mov ints, -(r6)
-	and #h02, (r6)+
+	mov ints, r0
+	and #h02, r0
 	beq isr_routine_end ;Teclado não causou a interrupção
 
 	;Teclado causou a interrupção
-	mov isr_keyboard, -(r6)
-	jsr r7, ((r6)+) ;A subrotina deve ser chamada pela stack pois `(isr_timer)` não é válido
+	mov isr_keyboard, r0
+	jsr r7, (r0) ;A subrotina deve ser chamada indiretamente pois `(isr_timer)` não é válido
 	and #hFD, ints   ;Limpar status do teclado
 	clr tecst        ;Permitir que o teclado cause outra interrupção
 
