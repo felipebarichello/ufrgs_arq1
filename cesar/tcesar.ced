@@ -359,9 +359,6 @@ _game_update_timer:
 ;Interrupção do teclado.
 ;Tentativa do jogador de adivinhar uma letra da palavra secreta.
 _game_guess:
-	mov r0, -(r6) ;Armazenar r0
-	mov r4, -(r6) ;Armazenar r4
-
 	mov tecdt, r0
 
 	;Verificar se o caractere é válido
@@ -370,10 +367,6 @@ _game_guess:
 	beq game_guess_invalid ;Branch se caractere é inválido
 
 	;Caractere é válido
-	mov r1, -(r6) ;Armazenar r1
-	mov r2, -(r6) ;Armazenar r2
-	mov r3, -(r6) ;Armazenar r3
-
 	;Converter para maiúsculas
 	cmp r0, #'a'
 	bcs game_guess_skip_upper ;Não é minúscula. Pular to-upper
@@ -422,13 +415,7 @@ game_guess_not_found:
 
 game_guess_skip_lost:
 game_guess_skip_not_found:
-	mov (r6)+, r3 ;Restaurar r3
-	mov (r6)+, r2 ;Restaurar r2
-	mov (r6)+, r1 ;Restaurar r1
-
 game_guess_invalid:
-	mov (r6)+, r4 ;Restaurar r4
-	mov (r6)+, r0 ;Restaurar r0
 	rts r7
 
 
@@ -482,6 +469,7 @@ str_find_found:
 	rts r7
 
 str_find_not_found:
+
 	clr r2
 	rts r7
 
@@ -969,6 +957,14 @@ _isr_disable_keyboard:
 ;É necessário salvar e restaurar todos os registradores de uso geral utilizados no tratador de
 ;interrupção.
 i_isr_routine:
+	;Armazenar registradores de uso geral
+	mov r0, -(r6)
+	mov r1, -(r6)
+	mov r2, -(r6)
+	mov r3, -(r6)
+	mov r4, -(r6)
+	mov r5, -(r6)
+
 isr_routine_test_timer:
 	tst isr_timer
 	beq isr_routine_test_keyboard ;isr_timer é NULL
@@ -999,25 +995,35 @@ isr_routine_test_keyboard:
 	clr tecst        ;Permitir que o teclado cause outra interrupção
 
 isr_routine_end:
+	;Restaurar registradores de uso geral
+	mov (r6)+, r5
+	mov (r6)+, r4
+	mov (r6)+, r3
+	mov (r6)+, r2
+	mov (r6)+, r1
+	mov (r6)+, r0
+
 	rti
 
+
+isr_waitfor_keyboard_triggered: DW
 
 ;isr_waitfor_keyboard()
 ;Pausar o programa até que uma tecla seja pressionada.
 _isr_waitfor_keyboard:
 	mov #_isr_waitfor_keyboard_interrupt, isr_keyboard
 	jsr r7, _isr_enable_keyboard
-	clr r0
+	clr isr_waitfor_keyboard_triggered
 
 isr_waitfor_keyboard_loop:
-	tst r0
+	tst isr_waitfor_keyboard_triggered
 	beq isr_waitfor_keyboard_loop
 
 	jsr r7, _isr_disable_keyboard
 	rts r7
 
 _isr_waitfor_keyboard_interrupt:
-	inc r0
+	inc isr_waitfor_keyboard_triggered
 	rts r7
 
 
