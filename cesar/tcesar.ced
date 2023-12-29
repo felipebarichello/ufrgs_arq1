@@ -99,7 +99,8 @@ txt_lore_23: DAW 'Pilatos entao inventa um jogo.', 0
 txt_lore_24: DAW 'Se voce acertar a palavra que', 0
 txt_lore_25: DAW 'Pilatos pensou, voce sera libertado', 0
 txt_lore_26: DAW 'Senao, voce sera enforcado.', 0
-txt_enter_word: DAW 'Insira a palavra secreta', 0
+txt_enter_word: DAW 'Insira a palavra secreta.', 0
+txt_enter_word_max: DAW 'Ha um limite de 25 caracteres.', 0
 txt_enter_word_prompt: DAW 'Palavra: ', 0
 txt_enter_word_invalid: DAW 'Palavra invalida!', 0
 txt_enter_lives: DAW 'Quantas vidas (1-99): ', 0
@@ -246,7 +247,7 @@ enter_word_loop:
 	;Note que `secret_word+24` é o endereço do caractere 25,
 	;mas como é uma array de bytes, r2 sempre aponta para o byte anterior.
 	cmp r2, #secret_word+23 
-	bhi enter_word_invalid ;Se ultrapassou, é inválido
+	bhi enter_word_max ;Se ultrapassou, é inválido
 	
 	;Verificar se o caractere é válido
 	jsr r7, _game_valid_char
@@ -269,6 +270,14 @@ enter_word_invalid:
 	jsr r7, _stdio_anykey
 	
 	jsr r7, _stdio_clear
+	br enter_word
+
+enter_word_max:
+	jsr r7, _stdio_clear
+	mov #txt_enter_word_invalid, r2 ;Imprimir "Inválido"
+	jsr r7, _print_and_wait
+	mov #txt_enter_word_max, r2 ;Imprimir "Limite de 25 caracteres"
+	jsr r7, _print_and_wait
 	br enter_word
 
 enter_word_valid:
