@@ -71,7 +71,8 @@ strbuf36: DAW [37] ;Buffer de string do tamanho do display
 txt_press_any_1: DAW 'Pressione qualquer tecla para', 0
 txt_press_any_2: DAW 'continuar quando o icone a direita', 0
 txt_press_any_3: DAW 'estiver presente', 0
-txt_welcome: DAW 'Bem-vindo(a) a Iulius Caesar', 0
+txt_welcome: DAW 'Bem-vindo(a) a Pascoa de Cesar', 0
+txt_lore_prompt: DAW 'Deseja ler a lore? (s/n) ', 0
 txt_enter_word: DAW 'Insira a palavra secreta', 0
 txt_enter_word_prompt: DAW 'Palavra: ', 0
 txt_enter_word_invalid: DAW 'Palavra invalida!', 0
@@ -347,27 +348,9 @@ game_play_again:
 	;Perguntar se o jogador quer jogar novamente
 	mov #txt_play_again_prompt, r2
 	jsr r7, _stdio_print
-
-	;Receber a resposta do jogador (s/n)
-	jsr r7, _stdio_in
-	mov #strbuf36, r3
-	jsr r7, _stdio_input_flush
-
-	;Verificar se há apenas um caractere
-	tst strbuf36+2
-	bne game_play_again_invalid
-
-	;Se sim, reiniciar o jogo
-	cmp (r3), #'s'
-	beq game_restart
-	cmp (r3), #'S'
-	beq game_restart
-
-	;Não
-	cmp (r3), #'n'
+	jsr r7, _stdio_yn
 	beq game_exit
-	cmp (r3), #'N'
-	beq game_exit
+	bgt game_restart
 
 ;Entrada inválida
 game_play_again_invalid:
@@ -1014,6 +997,45 @@ _stdio_anykey:
 	jsr r7, _isr_waitfor_keyboard
 
 	mov r4, display+35 ;Recuperar o último byte do display
+	rts r7
+
+
+;stdio_yn() : r0
+;Pegar input do usuário de perguntas de sim ou não
+;Retorna em r0 0 se o usuário respondeu não, 1 se respondeu sim, e -1 se a entrada for inválida
+;As flags Z e N estarão relacionadas a r0, e V sempre estará desligada
+_stdio_yn:
+	;Receber a resposta do jogador (s/n)
+	jsr r7, _stdio_in
+	mov #strbuf36, r3
+	jsr r7, _stdio_input_flush
+
+	;Verificar se há apenas um caractere
+	tst strbuf36+2
+	bne stdio_yn_invalid
+
+	;Sim
+	cmp (r3), #'s'
+	beq stdio_yn_yes
+	cmp (r3), #'S'
+	beq stdio_yn_yes
+
+	;Não
+	cmp (r3), #'n'
+	beq stdio_yn_no
+	cmp (r3), #'N'
+	beq stdio_yn_no
+
+stdio_yn_invalid:
+	mov #-1, r0
+	rts r7
+
+stdio_yn_yes:
+	mov #1, r0
+	rts r7
+
+stdio_yn_no:
+	clr r0
 	rts r7
 
 ;+-------------------------------------------------------------------------------------------------+
