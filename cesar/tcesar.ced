@@ -32,12 +32,37 @@ __startup:
 ;+=================================================================================================+
 
 
-;VARIÁVEIS
+;VARIÁVEIS E CONSTANTES
 
 ;Palavra secreta com os caracteres não descobertos substituídos por '_'.
 ;É basicamente um buffer do que é exibido no display para não fazer operações diretamente no display,
 ;o que é má prática e impediria o uso do display para outras coisas, como exibir mensagens de "letra já usada".
 secret_word_hidden: DAW [37] 
+
+;Máscara de bits que indica as letras já usadas
+;0b00 -> Nem 'A', nem 'B' foram usados 
+;0b01 -> 'A' foi usado, mas 'B' não
+;0b10 -> 'B' foi usado, mas 'A' não
+;0b11 -> 'A' e 'B' foram usados
+;E assim segue até 'Z', que corresponde ao bit 0x0200_0000
+;Os bits de 0x0400_0000 a 0x8000_0000 são ignorados
+;
+; 1º byte | 2º byte | 3º byte | 4º byte 
+;0000 00ZY XWVU TSRQ PONM LKJI HGFE DCBA
+guess_mask: DAW [2]
+
+;Mapa que associa as letras de 'A' a 'P' a máscaras de bits com apenas um bit ligado
+;A partir de 'Q', 'Q' deve ser subtraído do valor, e o primeiro byte de guess_mask deve ser usado
+;
+;guess_mask_map   = 0b0000_0001
+;guess_mask_map+2 = 0b0000_0010
+;guess_mask_map+4 = 0b0000_0100
+;...
+;guess_mask_map+30 = 0x8000
+guess_mask_map: DAW h0001, h0002, h0004, h0008
+				DAW h0010, h0020, h0040, h0080
+				DAW h0100, h0200, h0400, h0800
+				DAW h1000, h2000, h4000, h8000
 
 clock: DW ;Quantos ticks de 250ms se passaram desde o início do jogo
 strbuf36: DAW [37] ;Buffer de string do tamanho do display
@@ -203,7 +228,9 @@ enter_lives_invalid:
 game_setup:
 	jsr r7, _stdio_clear
 
-	clr clock
+	clr clock ;Zerar o timer
+	clr guess_mask ;Zerar a máscara de letras usadas
+	clr guess_mask+2
 
 	;Copiar a palavra secreta para a palavra secreta escondida, substituindo os caracteres por '_'
 	mov #secret_word-1, r3
@@ -374,8 +401,33 @@ _game_guess:
 	sub #32, r0 ;'A' - 'a' = -32
 
 game_guess_skip_upper:
-	;TODO: Verificar se o caractere já foi usado
+	;Verificar se o caractere já foi usado
+	mov r0, r1 ;Copiar r0 para r1 para não alterar r0
+	cmp r1, #'Q' ;'Q' é o primeiro bit da palavra mais significativa
+	bcs game_guess_mask_low ;Se for menor que 'Q', utiliza o segundo byte da máscara
 
+;Senão, utilizar o primeiro byte da máscara
+game_guess_mask_high:
+	sub #'Q', r1 ;r1 agora contém a posição da letra no alfabeto a partir de 'Q' (0 => 'Q', 1 => 'R', ..., 9 => 'Z')
+	mov #guess_mask, r2 ;r2 contém o endereço do primeiro byte da máscara
+	br game_guess_mask_check
+
+game_guess_mask_low:
+	sub #'A', r1 ;r1 agora contém a posição da letra no alfabeto (0 => 'A', 1 => 'B', ..., 15 => 'P')
+	mov #guess_mask+2, r2 ;r2 contém o endereço do segundo byte da máscara
+
+;Mapear a posição da letra para a máscara correspondente e verificar se o bit está ligado
+game_guess_mask_check:
+	asl r1 ;r1 agora contém o offset do mapa de máscaras
+	mov guess_mask_map(r1), r1 ;r1 agora contém a máscara correspondente à letra
+	mov r1, r3 ;Copiar para r3 para não perder o valor de r1
+	and (r2), r3 ;r3 será zero se e somente se o bit correspondente à letra estiver desligado
+	bne game_guess_invalid ;É inválido se a letra já foi usada
+
+	;Senão, é letra válida.
+	or r1, (r2) ;Ligar o bit correspondente à letra na máscara
+
+	;Preparar o loop para procurar a letra na palavra secreta
 	mov #secret_word-1, r2
 	clr r3 ;r3 é uma flag que indica se o caractere foi encontrado alguma vez
 
@@ -400,7 +452,7 @@ game_guess_found:
 
 game_guess_end:
 	tst r3
-	bne game_guess_skip_not_found ;Branch se a letra foi encontrado na palavra
+	bne game_guess_skip_not_found ;Branch se a letra foi encontrada na palavra
 
 ;Letra não foi encontrada
 game_guess_not_found:
