@@ -117,6 +117,7 @@ enter_word:
 	;Extrair a palavra secreta do usuário e converter para maiúsculas caso seja válida
 	mov #secret_word, r3
 	jsr r7, _stdio_input_flush_bytes ;Como array de bytes, conforme a especificação do trabalho
+
 	mov #secret_word-1, r2
 
 	;Primeira verificação: verificar se está vazia
@@ -130,6 +131,12 @@ enter_word:
 
 ;Verificar se a palavra secreta inserida é válida
 enter_word_loop:
+	;Verificar se ultrapassou o limite de 25 caracteres, conforme as especificações do trabalho.
+	;Note que `secret_word+24` é o endereço do caractere 25,
+	;mas como é uma array de bytes, r2 sempre aponta para o byte anterior.
+	cmp r2, #secret_word+23 
+	bhi enter_word_invalid ;Se ultrapassou, é inválido
+	
 	;Verificar se o caractere é válido
 	jsr r7, _game_valid_char
 	beq enter_word_invalid
