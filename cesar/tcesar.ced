@@ -201,6 +201,8 @@ lore:
 	jsr r7, _print_and_wait
 	mov #txt_lore_21, r2
 	jsr r7, _print_and_wait
+	mov #txt_lore_22, r2
+	jsr r7, _print_and_wait
 	mov #txt_lore_23, r2
 	jsr r7, _print_and_wait
 	mov #txt_lore_24, r2
