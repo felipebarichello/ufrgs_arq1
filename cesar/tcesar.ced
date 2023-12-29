@@ -100,6 +100,7 @@ __main:
 	mov #txt_press_any_3, r2
 	jsr r7, _print_and_wait
 
+reset_point:
 	mov #txt_welcome, r2
 	jsr r7, _print_and_wait
 
@@ -328,7 +329,9 @@ game_over:
 	add #6, r2 ;Escrever apenas os dois últimos dígitos
 	jsr r7, _stdio_print ;Imprimir os segundos
 
-	rts r7
+	jsr r7, _isr_waitfor_keyboard ;Esperar o jogador pressionar qualquer tecla
+	jsr r7, _stdio_clear
+	jmp reset_point ;Reiniciar o jogo, conforme as especificações do trabalho
 
 
 ;print_and_wait(buffer r2)
