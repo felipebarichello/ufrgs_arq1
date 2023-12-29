@@ -489,7 +489,20 @@ _game_draw:
 	mov #secret_word_hidden, r2
 	jsr r7, _stdio_print ;Imprimir a palavra secreta à esquerda
 
-	mov #display+27, stdio_cursor
+	;Preencher a área entre a palavra e as vidas com espaços, conforme as especificações do trabalho
+	mov #display+27, r0
+	mov stdio_cursor, r1
+	sub r1, r0 ;r0 agora contém quantos caracteres faltam para escrever até `#display+26`
+	beq game_draw_skip_padding ;Se não faltar nenhum, não precisa preencher com espaços
+
+game_draw_padding_loop:
+	mov #' ', (r1)
+	inc r1
+	sob r0, game_draw_padding_loop
+
+game_draw_skip_padding:
+	mov r1, stdio_cursor ;Posicionar o cursor após a operação
+
 	mov #txt_ui_lives, r2
 	jsr r7, _stdio_print ;Imprimir texto de vidas à direita
 
