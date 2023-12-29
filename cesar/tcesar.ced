@@ -82,6 +82,11 @@ txt_colon: DAW ':', 0
 txt_game_lost: DAW 'Voce perdeu!', 0
 txt_game_won: DAW 'Voce venceu!', 0
 txt_time_elapsed: DAW 'Tempo de jogo: ', 0
+txt_play_again_prompt: DAW 'Jogar novamente? (s/n) ', 0
+txt_play_again_invalid: DAW 'Entrada invalida!', 0
+txt_play_again_y: DAW 'Insira ', h27, 's', h27, ' para "sim",', 0
+txt_play_again_n: DAW 'ou ', h27, 'n', h27, ' para "nao"', 0
+txt_exit: DAW '************************************', 0
 
 
 ;PROGRAMA
@@ -100,7 +105,7 @@ __main:
 	mov #txt_press_any_3, r2
 	jsr r7, _print_and_wait
 
-reset_point:
+restart_point:
 	mov #txt_welcome, r2
 	jsr r7, _print_and_wait
 
@@ -335,10 +340,57 @@ game_over:
 	mov r5, r2
 	add #6, r2 ;Escrever apenas os dois últimos dígitos
 	jsr r7, _stdio_print ;Imprimir os segundos
-
 	jsr r7, _isr_waitfor_keyboard ;Esperar o jogador pressionar qualquer tecla
 	jsr r7, _stdio_clear
-	jmp reset_point ;Reiniciar o jogo, conforme as especificações do trabalho
+	
+game_play_again:
+	;Perguntar se o jogador quer jogar novamente
+	mov #txt_play_again_prompt, r2
+	jsr r7, _stdio_print
+
+	;Receber a resposta do jogador (s/n)
+	jsr r7, _stdio_in
+	mov #strbuf36, r3
+	jsr r7, _stdio_input_flush
+
+	;Verificar se há apenas um caractere
+	tst strbuf36+2
+	bne game_play_again_invalid
+
+	;Se sim, reiniciar o jogo
+	cmp (r3), #'s'
+	beq game_restart
+	cmp (r3), #'S'
+	beq game_restart
+
+	;Não
+	cmp (r3), #'n'
+	beq game_exit
+	cmp (r3), #'N'
+	beq game_exit
+
+;Entrada inválida
+game_play_again_invalid:
+	jsr r7, _stdio_clear
+	mov #txt_play_again_invalid, r2
+	jsr r7, _print_and_wait
+
+	mov #txt_play_again_y, r2
+	jsr r7, _print_and_wait
+	mov #txt_play_again_n, r2
+	jsr r7, _print_and_wait
+
+	br game_play_again ;Repetir a pergunta
+
+game_restart:
+	jsr r7, _stdio_clear
+	jmp restart_point ;Reiniciar o jogo
+
+game_exit:
+	jsr r7, _stdio_clear
+	mov #txt_exit, r2
+	jsr r7, _stdio_print
+	rts r7 ;Terminar o programa
 
 
 ;print_and_wait(buffer r2)
