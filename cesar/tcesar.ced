@@ -698,7 +698,7 @@ stdio_input_start: DW ;Endereço de memória do primeiro byte do display que conté
 ;stdio_init()
 ;Inicializar o display e o teclado.
 _stdio_init:
-	clr #stdio_cursor ;Mandar limpar o display inteiro
+	clr stdio_cursor ;Mandar limpar o display inteiro
 	jsr r7, _stdio_clear   ;Limpar o display
 	rts r7
 
