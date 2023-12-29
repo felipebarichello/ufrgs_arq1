@@ -329,6 +329,7 @@ enter_lives_single_digit:
  	;Somar as unidades às dezenas.
 	;Perceba que, se houver apenas um dígito, r1 = 0
 	add r0, r1
+	beq enter_lives_invalid ;Não é permitido 0 vidas
 	
 	mov r1, lives ;Armazenar o número de vidas
 	br game_setup
