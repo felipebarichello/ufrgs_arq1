@@ -71,8 +71,27 @@ strbuf36: DAW [37] ;Buffer de string do tamanho do display
 txt_press_any_1: DAW 'Pressione qualquer tecla para', 0
 txt_press_any_2: DAW 'continuar quando o icone a direita', 0
 txt_press_any_3: DAW 'estiver presente', 0
-txt_welcome: DAW 'Bem-vindo(a) a Pascoa de Cesar', 0
+txt_welcome: DAW 'Bem-vindo(a) ao Jogo da Cruz', 0
 txt_lore_prompt: DAW 'Deseja ler a lore? (s/n) ', 0
+txt_lore_01: DAW 'Voce e Barrabas, um ladrao,', 0
+txt_lore_02: DAW 'prisioneiro no imperio romano.', 0
+txt_lore_03: DAW 'Estamos no reinado do imperador', 0
+txt_lore_04: DAW 'Tiberio Claudio Nero Cesar,', 0
+txt_lore_05: DAW 'e estamos na semana de Pascoa.', 0
+txt_lore_06: DAW 'Como e tradicao no imperio,', 0
+txt_lore_07: DAW 'em epoca de Pascoa,', 0
+txt_lore_08: DAW 'um prisioneiro sera solto', 0
+txt_lore_09: DAW 'e tera a chance de se redimir.', 0
+txt_lore_10: DAW 'Poncio Pilatos, o carrasco,', 0
+txt_lore_11: DAW 'pergunta ao povo quem deve', 0
+txt_lore_12: DAW 'ser libertado.', 0
+txt_lore_13: DAW 'Como eles decidem libertar voce,', 0
+txt_lore_14: DAW 'mas crucificar Jesus,', 0
+txt_lore_15: DAW 'Pilatos decide mudar a formula.', 0
+txt_lore_16: DAW 'Se voce acertar a palavra que', 0
+txt_lore_17: DAW 'Pilatos pensou, o desejo do povo', 0
+txt_lore_18: DAW 'sera satisfeito.', 0
+txt_lore_19: DAW 'Senao, voce sera crucificado.', 0
 txt_enter_word: DAW 'Insira a palavra secreta', 0
 txt_enter_word_prompt: DAW 'Palavra: ', 0
 txt_enter_word_invalid: DAW 'Palavra invalida!', 0
@@ -84,9 +103,9 @@ txt_game_lost: DAW 'Voce perdeu!', 0
 txt_game_won: DAW 'Voce venceu!', 0
 txt_time_elapsed: DAW 'Tempo de jogo: ', 0
 txt_play_again_prompt: DAW 'Jogar novamente? (s/n) ', 0
-txt_play_again_invalid: DAW 'Entrada invalida!', 0
-txt_play_again_y: DAW 'Insira ', h27, 's', h27, ' para "sim",', 0
-txt_play_again_n: DAW 'ou ', h27, 'n', h27, ' para "nao"', 0
+txt_yn_invalid: DAW 'Entrada invalida!', 0
+txt_yn_invalid_y: DAW 'Insira ', h27, 's', h27, ' para "sim",', 0
+txt_yn_invalid_n: DAW 'ou ', h27, 'n', h27, ' para "nao".', 0
 txt_exit: DAW '************************************', 0
 
 
@@ -107,9 +126,74 @@ __main:
 	jsr r7, _print_and_wait
 
 restart_point:
+	jsr r7, _stdio_clear
 	mov #txt_welcome, r2
 	jsr r7, _print_and_wait
 
+lore_prompt:
+	;Perguntar se o jogador quer ler a lore
+	mov #txt_lore_prompt, r2
+	jsr r7, _stdio_print
+	jsr r7, _stdio_yn
+	bgt lore
+	blt lore_input_invalid
+	jmp skip_lore
+
+lore_input_invalid:
+	;Entrada inválida
+	jsr r7, _stdio_clear
+	mov #txt_yn_invalid, r2
+	jsr r7, _print_and_wait
+	mov #txt_yn_invalid_y, r2
+	jsr r7, _print_and_wait
+	mov #txt_yn_invalid_n, r2
+	jsr r7, _print_and_wait
+	br lore_prompt ;Repetir a pergunta
+
+lore:
+	jsr r7, _stdio_clear
+	mov #txt_lore_01, r2
+	jsr r7, _print_and_wait
+	mov #txt_lore_02, r2
+	jsr r7, _print_and_wait
+	mov #txt_lore_03, r2
+	jsr r7, _print_and_wait
+	mov #txt_lore_04, r2
+	jsr r7, _print_and_wait
+	mov #txt_lore_05, r2
+	jsr r7, _print_and_wait
+	mov #txt_lore_06, r2
+	jsr r7, _print_and_wait
+	mov #txt_lore_07, r2
+	jsr r7, _print_and_wait
+	mov #txt_lore_08, r2
+	jsr r7, _print_and_wait
+	mov #txt_lore_09, r2
+	jsr r7, _print_and_wait
+	mov #txt_lore_10, r2
+	jsr r7, _print_and_wait
+	mov #txt_lore_11, r2
+	jsr r7, _print_and_wait
+	mov #txt_lore_12, r2
+	jsr r7, _print_and_wait
+	mov #txt_lore_13, r2
+	jsr r7, _print_and_wait
+	mov #txt_lore_14, r2
+	jsr r7, _print_and_wait
+	mov #txt_lore_15, r2
+	jsr r7, _print_and_wait
+	mov #txt_lore_16, r2
+	jsr r7, _print_and_wait
+	mov #txt_lore_17, r2
+	jsr r7, _print_and_wait
+	mov #txt_lore_18, r2
+	jsr r7, _print_and_wait
+	mov #txt_lore_19, r2
+	jsr r7, _stdio_print
+	jsr r7, _stdio_anykey
+
+skip_lore:
+	jsr r7, _stdio_clear
 	mov #txt_enter_word, r2
 	jsr r7, _print_and_wait
 
@@ -355,12 +439,12 @@ game_play_again:
 ;Entrada inválida
 game_play_again_invalid:
 	jsr r7, _stdio_clear
-	mov #txt_play_again_invalid, r2
+	mov #txt_yn_invalid, r2
 	jsr r7, _print_and_wait
 
-	mov #txt_play_again_y, r2
+	mov #txt_yn_invalid_y, r2
 	jsr r7, _print_and_wait
-	mov #txt_play_again_n, r2
+	mov #txt_yn_invalid_n, r2
 	jsr r7, _print_and_wait
 
 	br game_play_again ;Repetir a pergunta
