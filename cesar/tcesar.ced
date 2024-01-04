@@ -75,30 +75,31 @@ txt_welcome: DAW 'Bem-vindo(a) a Pascoa de Cesar', 0
 txt_lore_prompt: DAW 'Deseja ler a lore? (s/n) ', 0
 txt_lore_01: DAW 'Voce e Barrabas, um ladrao,', 0
 txt_lore_02: DAW 'prisioneiro no imperio romano.', 0
-txt_lore_03: DAW 'Voce foi pego novamente apos', 0
-txt_lore_04: DAW 'ja ter sido liberado no passado.', 0
+txt_lore_03: DAW 'Voce foi pego novamente apos ja', 0
+txt_lore_04: DAW 'ter sido liberado no passado.', 0
 txt_lore_05: DAW 'Estamos no reinado do imperador', 0
 txt_lore_06: DAW 'Tiberio Claudio Nero Cesar,', 0
 txt_lore_07: DAW 'e estamos na semana de Pascoa.', 0
 txt_lore_08: DAW 'Como e tradicao no imperio,', 0
 txt_lore_09: DAW 'em epoca de Pascoa,', 0
-txt_lore_10: DAW 'um prisioneiro sera solto', 0
-txt_lore_11: DAW 'e tera a chance de se redimir.', 0
+txt_lore_10: DAW 'um prisioneiro sera solto e tera', 0
+txt_lore_11: DAW 'a chance de se redimir.', 0
 txt_lore_12: DAW 'Ja nao se usa mais a cruz.', 0
 txt_lore_13: DAW 'O imperio agora adota o uso', 0
-txt_lore_14: DAW 'da forca para as execucoes', 0
+txt_lore_14: DAW 'da forca para as execucoes.', 0
 txt_lore_15: DAW 'Cesar percebe que ha apenas', 0
 txt_lore_16: DAW 'um prisioneiro dessa vez: voce.', 0
 txt_lore_17: DAW 'Cesar entao pede a Poncio Pilatos,', 0
-txt_lore_18: DAW 'o carrasco, proximo de se aposentar,', 0
-txt_lore_19: daw 'para que transforme essa decisao', 0
-txt_lore_20: DAW 'em um jogo, ja que nao quer deixar', 0
-txt_lore_21: DAW 'voce sair impune sem esforco apos', 0
-txt_lore_22: DAW 'ser libertado uma segunda vez.', 0
+txt_lore_18: DAW 'o carrasco, proximo de se', 0
+txt_lore_19: daw 'aposentar, para que transforme essa', 0
+txt_lore_20: DAW 'decisao em um jogo, ja que nao quer', 0
+txt_lore_21: DAW 'deixar voce sair impune sem esforco', 0
+txt_lore_22: DAW 'apos ser libertado uma segunda vez.', 0
 txt_lore_23: DAW 'Pilatos entao inventa um jogo.', 0
 txt_lore_24: DAW 'Se voce acertar a palavra que', 0
-txt_lore_25: DAW 'Pilatos pensou, voce sera libertado', 0
-txt_lore_26: DAW 'Senao, voce sera enforcado.', 0
+txt_lore_25: DAW 'Pilatos pensou, voce sera ', 0
+txt_lore_26: DAW 'libertado.', 0
+txt_lore_27: DAW 'Senao, voce sera enforcado.', 0
 txt_enter_word: DAW 'Insira a palavra secreta.', 0
 txt_enter_word_max: DAW 'Ha um limite de 25 caracteres.', 0
 txt_enter_word_prompt: DAW 'Palavra: ', 0
@@ -211,6 +212,8 @@ lore:
 	mov #txt_lore_25, r2
 	jsr r7, _print_and_wait
 	mov #txt_lore_26, r2
+	jsr r7, _print_and_wait
+	mov #txt_lore_27, r2
 	jsr r7, _stdio_print
 	jsr r7, _stdio_anykey
 
