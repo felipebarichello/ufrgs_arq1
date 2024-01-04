@@ -256,12 +256,15 @@ enter_word_loop:
 	bhi enter_word_max ;Se ultrapassou, é inválido
 	
 	;Verificar se o caractere é válido
-	jsr r7, _game_valid_char
+	jsr r7, _game_valid_char ;Essa subrotina testa r0 setado abaixo
 	beq enter_word_invalid
 
 	;É válido. Próximo loop.
 	inc r2
 	mov (r2), r0
+	cmp r0, #h2D2D ;0x2D é o código ASCII do hífen. Então 0x2D2D representam dois hífens seguidos.
+	beq enter_word_invalid ;Se houver dois hífens seguidos, é inválido.
+
 	and #h00FF, r0 ;Trata apenas o byte menos significativo
 
 	;Se chegar no null terminator, a palavra é válida
