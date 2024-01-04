@@ -267,7 +267,7 @@ enter_word_loop:
 	;Se chegar no null terminator, a palavra é válida
 	;Senão, continuar o loop
 	bne enter_word_loop
-	br enter_word_valid
+	br enter_word_end
 
 enter_word_invalid:
 	jsr r7, _stdio_clear
@@ -286,7 +286,11 @@ enter_word_max:
 	jsr r7, _print_and_wait
 	br enter_word
 
-enter_word_valid:
+enter_word_end:
+	;Verificar se a palavra secreta termina com hífen
+	cmp (r2), #h2D00 ;0x2D é o código ASCII do hífen, e sabe-se que (r2) é nulo.
+	beq enter_word_invalid ;Palavras não podem terminar com hífen
+
 	jsr r7, _str_to_upper_bytes ;Como array de bytes, conforme a especificação do trabalho
 
 enter_lives:
