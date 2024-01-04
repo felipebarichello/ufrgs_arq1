@@ -240,6 +240,9 @@ enter_word:
 	and #h00FF, r0 ;Trata apenas o byte menos significativo
 	beq enter_word_invalid
 
+	cmp r0, #'-'
+	beq enter_word_invalid ;Palavras não podem começar com hífen
+
 	;_game_valid_char recebe qualquer valor não-nulo em r4 para verificar hífen,
 	;e sabe-se que r0 não é nulo, então é seguro colocá-lo em r4
 	mov r0, r4 
